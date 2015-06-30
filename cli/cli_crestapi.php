@@ -59,7 +59,7 @@ class cli_crestapi implements cliCommand
 					$killID = $crest["killID"];
 					$hash = trim($crest["hash"]);
 
-					$url = "http://public-crest.eveonline.com/killmails/$killID/$hash/";
+					$url = "https://public-crest.eveonline.com/killmails/$killID/$hash/";
 					StatsD::increment("crest_calls");
 					$ch = curl_init();
 					curl_setopt($ch, CURLOPT_URL, $url);

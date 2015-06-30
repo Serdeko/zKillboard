@@ -33,7 +33,7 @@ class cli_verifyManualKillmail implements cliCommand
 		{
 			$c = Db::queryField("select count(1) count from zz_killmails where killID = $i", "count", array(), 0);
 			if ($c > 0) continue;
-			$url = "http://public-crest.eveonline.com/killmails/$i/$hash/";
+			$url = "https://public-crest.eveonline.com/killmails/$i/$hash/";
 echo "$url\n";
 
 			$httpCode = self::getHttpCode($url);

@@ -42,8 +42,8 @@ class cli_updateAlliances implements cliCommand
             foreach ($alliances as $alliance) {
                 $allianceID = $alliance["allianceID"];
 
-                // Crest URL: http://public-crest.eveonline.com/alliances/99000006/
-                $data = Util::getCrest("http://public-crest.eveonline.com/alliances/{$allianceID}/");
+                // Crest URL: https://public-crest.eveonline.com/alliances/99000006/
+                $data = Util::getCrest("https://public-crest.eveonline.com/alliances/{$allianceID}/");
                 $info = array();
 
                 $info["startDate"] = $data->startDate;

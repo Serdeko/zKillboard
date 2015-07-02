@@ -46,7 +46,8 @@ class cli_crestapi implements cliCommand
 		$count = 0;
 		$timer = new Timer();
 
-		$db::execute("update zz_crest_killmail set processed = 0 where processed < -500");
+		$db->execute("update zz_crest_killmail set processed = 0 where processed < -500");
+
 		do {
 			// Put priority on unknown kills first
 			/*$crests = $db->query("select c.* from zz_crest_killmail c left join zz_killmails k on (c.killID = k.killID) where c.processed = 0 and k.killID is null order by killID desc limit 1", array(), 0);
@@ -76,7 +77,7 @@ class cli_crestapi implements cliCommand
 					}
 					if ($httpCode != 200)
 					{
-						Db::execute("update zz_crest_killmail set processed = :i where killID = :killID and hash = :hash", array(":i" => (-1 * $httpCode), ":killID" => $killID, ":hash" => $hash));
+						$db->execute("update zz_crest_killmail set processed = :i where killID = :killID and hash = :hash", array(":i" => (-1 * $httpCode), ":killID" => $killID, ":hash" => $hash));
 						continue;
 					}
 

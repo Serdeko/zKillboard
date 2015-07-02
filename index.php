@@ -7,7 +7,7 @@ $timer = new Timer();
 
 // Starting Slim Framework
 $app = new \Slim\Slim($config);
-$app->add(new pageCache());
+//$app->add(new pageCache());
 
 // Session
 $session = new zKBSession();

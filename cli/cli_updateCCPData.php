@@ -82,9 +82,9 @@ class cli_updateCCPData implements cliCommand
 					$name = "systems";
 
 				if(isset($name))
-					$data = str_replace($file, "ccp_$name", $data);
+					$data = str_replace("`" . $file . "`", "`ccp_" . $name . "`", $data);
 				else
-					$data = str_replace($file, "ccp_$file", $data);
+					$data = str_replace("`" . $file . "`", "`ccp_" . $file . "`", $data);
 
 				$dataParts = explode(";\n", $data);
 

@@ -104,6 +104,8 @@ foreach($noAdPages as $noAdPage) {
 	$showAds &= !Util::startsWith($uri, $noAdPage);
 	$showAds &= $userShowAds;
 }
+
+$twig->addGlobal("showAds", $showAds);
 $twig->addglobal("showAnalytics", $showAnalytics);
 $twig->addGlobal("showFacebook", $showFacebook && UserConfig::get("showFacebook", true));
 if($disqus)

@@ -161,17 +161,10 @@ if ($pageType == "wars" && $extra["hasWars"]) {
 	$extra["wars"][] = War::getNamedWars("Closed Wars - Defending", "select * from zz_wars where defender = $warID and timeFinished is not null order by timeFinished desc");
 }
 
-$minKillID = Db::queryField("select min(killID) killID from zz_participants where dttm >= date_sub(now(), interval 90 day) and dttm < date_sub(now(), interval 89 day)", "killID", array(), 900);
-if ($minKillID > 0) {
-	$hasSupers = Db::queryField("select killID from zz_participants where isVictim = 0 and groupID in (30, 659) and allianceID = :id and killID > $minKillID limit 1", "killID", array(":id" => $allianceID));
-} else {
-	$hasSupers = 0;
-}
-
-$extra["hasSupers"] = $hasSupers > 0;
 $extra["supers"] = array();
-if ($pageType == "supers" && $hasSupers)
+if ($pageType == "supers")
 {
+	$minKillID = Db::queryField("select min(killID) killID from zz_participants where dttm >= date_sub(now(), interval 90 day) and dttm < date_sub(now(), interval 89 day)", "killID", array(), 900);
 	$months = 3;
 	$data = array();
 	$data["titans"]["data"] = Db::query("SELECT distinct characterID, count(distinct killID) kills, shipTypeID FROM zz_participants WHERE killID >= $minKillID AND isVictim = 0 AND groupID = 30 AND allianceID = :id GROUP BY characterID ORDER BY 2 DESC", array(":id" => $allianceID), 900);
@@ -182,7 +175,6 @@ if ($pageType == "supers" && $hasSupers)
 
 	Info::addInfo($data);
 	$extra["supers"] = $data;
-	$extra["hasSupers"] = sizeof($data["titans"]["data"]) || sizeof($data["moms"]["data"]);
 }
 
 if($pageType == "members")

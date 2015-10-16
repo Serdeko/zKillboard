@@ -254,14 +254,14 @@ switch ($key) {
 		$filter = "{$key}ID = :id";
 }
 if ($filter != "") {
-	$minKillID = Db::queryField("select min(killID) killID from zz_participants where dttm >= date_sub(now(), interval 90 day) and dttm < date_sub(now(), interval 89 day)", "killID", array(), 900);
-	if ($minKillID > 0) {
-		$hasSupers = Db::queryField("select killID from zz_participants where isVictim = 0 and groupID in (30, 659) and $filter and killID > $minKillID limit 1", "killID", array(":id" => $id));
-	} else {
-		$hasSupers = 0;
-	}
+	//$minKillID = Db::queryField("select min(killID) killID from zz_participants where dttm >= date_sub(now(), interval 90 day) and dttm < date_sub(now(), interval 89 day)", "killID", array(), 900);
+	//if ($minKillID > 0) {
+	//	$hasSupers = Db::queryField("select killID from zz_participants where isVictim = 0 and groupID in (30, 659) and $filter and killID > $minKillID limit 1", "killID", array(":id" => $id));
+	//} else {
+	//	$hasSupers = 0;
+	//}
 
-	$extra["hasSupers"] = $hasSupers > 0;
+	$extra["hasSupers"] = 0; //$hasSupers > 0;
 	$extra["supers"] = array();
 	if ($pageType == "supers" && $hasSupers) {
 		$months = 3;

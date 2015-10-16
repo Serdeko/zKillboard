@@ -50,9 +50,7 @@
 	{% if key == "corporation" or key == "alliance" %}
 	<li class="{{ isActive('members', pageType) }} hidden-xs"><a href="/{{ key }}/{{ id }}/members/">Members</a></li>
 	{% endif %}
-	{% if extra.hasSupers > 0 %}
 	<li class="{{ isActive('supers', pageType) }} hidden-xs"><a href="/{{ key }}/{{ id }}/supers/">Supers</a></li>
-	{% endif %}
 	{% if extra.hasWars > 0 %}
 	<li class="{{ isActive('wars', pageType) }} hidden-xs"><a href="/{{ key }}/{{ id }}/wars/">Wars</a></li>
 	{% endif %}

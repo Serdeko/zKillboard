@@ -82,19 +82,19 @@ switch($type)
 		$kills = Kills::getKills(array("groupID" => "351210", "limit" => $limit, "cacheTime" => 300, "losses" => true, "page" => $page));
 	break;
 	case "lowsec":
-		$kills = Kills::getKills(array("lowsec" => true, "page" => $page));
+		$kills = Kills::getKills(array("lowsec" => true, "page" => $page, "losses" => true));
 	break;
 	case "highsec":
-		$kills = Kills::getKills(array("highsec" => true, "page" => $page));
+		$kills = Kills::getKills(array("highsec" => true, "page" => $page, "losses" => true));
 	break;
 	case "nullsec":
-		$kills = Kills::getKills(array("nullsec" => true, "page" => $page));
+		$kills = Kills::getKills(array("nullsec" => true, "page" => $page, "losses" => true));
 	break;
 	case "w-space":
-		$kills = Kills::getKills(array("w-space" => true, "page" => $page));
+		$kills = Kills::getKills(array("w-space" => true, "page" => $page, "losses" => true));
 	break;
 	default:
-		$kills = Kills::getKills(array("combined" => true, "page" => $page));
+		$kills = Kills::getKills(array("combined" => true, "page" => $page, "losses" => true));
 	break;
 }
 

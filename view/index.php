@@ -38,6 +38,6 @@ $top[] = json_decode(Storage::retrieve("TopSystems"), true);
 
 // get latest kills
 $killsLimit = 50;
-$kills = Kills::getKills(array("limit" => $killsLimit));
+$kills = Kills::getKills(array("limit" => $killsLimit, "losses" => true));
 
 $app->render("index.html", array("topPods" => $topPods, "topIsk" => $topIsk, "topPoints" => $topPoints, "topKillers" => $top, "kills" => $kills, "page" => $page, "pageType" => $pageType, "pager" => true, "pageTitle" => $pageTitle, "requestUriPager" => $requestUriPager));

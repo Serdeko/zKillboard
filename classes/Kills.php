@@ -68,7 +68,7 @@ class Kills
 		// Is isVictim is used, no need to use distinct, since isVictim is already distinct
 		if(stristr($query, "isVictim = '1'"))
 			$query = str_replace("distinct", "", $query);
-		
+
 		$cacheTime = array_key_exists("cacheTime", $parameters) ? (int)$parameters["cacheTime"] : 120;
 		$cacheTime = max(120, $cacheTime);
 		if (array_key_exists("log", $parameters)) Db::log($query, array());

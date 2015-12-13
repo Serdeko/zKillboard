@@ -34,11 +34,9 @@ class api_combined implements apiEndpoint
 				"allianceID" => "list kills and losses for a certain allianceID.",
 				"factionID" => "list kills and losses for a certain factionID.",
 				"shipTypeID" => "list kills and losses where a certain shipTypeID is involved.",
-				"groupID" => "list kills and losses where a certain ship groupID is involved.",
 				"solarSystemID" => "list kills and losses that happened in a certain solarSystemID.",
 				"regionID" => "list kills and losses that happened in a certain regionID.",
 				"w-space" => "Only list kills and losses that has happened in wormhole space-",
-				"solo" => "Only list kills and losses where number of involved was 1.",
 				"page" => "Pagination.",
 				"orderDirection" => "ASC: Oldest to newest, DESC: newest to oldest (DESC is faster than ASC, by a factor 100).",
 				"pastSeconds" => "only show kills and losses that has happened in the past number of seconds.",
@@ -58,10 +56,8 @@ class api_combined implements apiEndpoint
 				"allianceID",
 				"factionID",
 				"shipTypeID",
-				"groupID",
 				"solarSystemID",
 				"regionID",
-				"solo",
 				"w-space"
 			)
 		);
@@ -89,7 +85,7 @@ class api_combined implements apiEndpoint
 			);
 
 		// At least one of these parameters is required
-		$requiredM = array("characterID", "corporationID", "allianceID", "factionID", "shipTypeID", "groupID", "solarSystemID", "regionID", "solo", "w-space", "killID");
+		$requiredM = array("characterID", "corporationID", "allianceID", "factionID", "shipTypeID", "solarSystemID", "regionID", "w-space", "killID");
 		$hasRequired = false;
 		foreach($requiredM as $required)
 			$hasRequired |= array_key_exists($required, $parameters);

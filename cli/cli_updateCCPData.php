@@ -52,7 +52,7 @@ class cli_updateCCPData implements cliCommand
 		if($lastSeenMD5 != $md5)
 		{
 			CLI::out("|g|Updating the ccp_ database tables with the latest release from fuzzwork.co.uk|n|");
-			$dbFiles = array("dgmAttributeCategories", "dgmAttributeTypes", "dgmEffects", "dgmTypeAttributes", "dgmTypeEffects", "invFlags", "invGroups", "invTypes", "mapDenormalize", "mapRegions", "mapSolarSystems");
+			$dbFiles = array("dgmAttributeCategories", "dgmAttributeTypes", "dgmEffects", "dgmTypeAttributes", "dgmTypeEffects", "invFlags", "invGroups", "mapDenormalize", "mapRegions", "mapSolarSystems");
 			$type = ".sql.bz2";
 
 			// Now run through each db table, and insert them !
@@ -61,6 +61,7 @@ class cli_updateCCPData implements cliCommand
 				CLI::out("|g|Importing:|n| $file");
 				$dataURL = $url . "latest/" . $file . $type;
 
+				echo $dataURL."\n";
 				// Get and extract, it's simpler to use execs for this, than to actually do it with php
 				try
 				{

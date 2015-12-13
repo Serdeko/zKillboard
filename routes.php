@@ -297,6 +297,7 @@ $app->get("/ship/:shipType(/:pageType)(/:subPages+)/", function($shipType, $page
 $app->get("/group/:group(/:pageType)(/:subPages+)/", function($group, $pageType = "overview", $subPages = array()) use ($app) {
 		include("view/group.php");
 });
+
 // The Overview stuff
 $app->get("/:input+/", function($input) use ($app) {
 	include("view/overview.php");

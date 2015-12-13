@@ -34,11 +34,9 @@ class api_kills implements apiEndpoint
 				"allianceID" => "list kills for a certain allianceID.",
 				"factionID" => "list kills for a certain factionID.",
 				"shipTypeID" => "list kills where a certain shipTypeID is involved.",
-				"groupID" => "list kills where a certain ship groupID is involved.",
 				"solarSystemID" => "list kills that happened in a certain solarSystemID.",
 				"regionID" => "list kills that happened in a certain regionID.",
 				"w-space" => "Only list kills that has happened in wormhole space-",
-				"solo" => "Only list kills where number of involved was 1.",
 				"page" => "Pagination.",
 				"orderDirection" => "ASC: Oldest to newest, DESC: newest to oldest (DESC is faster than ASC, by a factor 100).",
 				"pastSeconds" => "only show kills that has happened in the past number of seconds.",
@@ -59,10 +57,8 @@ class api_kills implements apiEndpoint
 				"allianceID",
 				"factionID",
 				"shipTypeID",
-				"groupID",
 				"solarSystemID",
 				"regionID",
-				"solo",
 				"w-space",
 				"killID"
 			)
@@ -94,7 +90,7 @@ class api_kills implements apiEndpoint
 		$parameters["api"] = true;
 
 		// At least one of these parameters is required
-		$requiredM = array("characterID", "corporationID", "allianceID", "factionID", "shipTypeID", "groupID", "solarSystemID", "regionID", "solo", "w-space", "killID");
+		$requiredM = array("characterID", "corporationID", "allianceID", "factionID", "shipTypeID", "solarSystemID", "regionID", "w-space", "killID");
 		$hasRequired = false;
 		foreach($requiredM as $required)
 			$hasRequired |= array_key_exists($required, $parameters);

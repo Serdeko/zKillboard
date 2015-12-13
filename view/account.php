@@ -150,6 +150,10 @@ if($_POST)
 	if(isset($timeago))
 		UserConfig::set("timeago", $timeago);
 
+	$showVideo = Util::getPost("showVideo");
+	if(isset($showVideo))
+		UserConfig::set("showVideo", $showVideo);
+
 	$deleteentityid = Util::getPost("deleteentityid");
 	$deleteentitytype = Util::getPost("deleteentitytype");
 	// Tracker
@@ -222,6 +226,7 @@ $charKeys = Info::addInfo($charKeys);
 $data["apiCharKeys"] = $charKeys;
 $data["userInfo"] = User::getUserInfo();
 $data["timeago"] = UserConfig::get("timeago");
+$data["showVideo"] = UserConfig::get("showVideo");
 $data["ddcombine"] = UserConfig::get("ddcombine");
 $data["ddmonthyear"] = UserConfig::get("ddmonthyear");
 $data["useSummaryAccordion"] = UserConfig::get("useSummaryAccordion", true);

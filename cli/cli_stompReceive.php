@@ -42,9 +42,8 @@ class cli_stompReceive implements cliCommand
 
 			$stomp->setReadTimeout(1);
 			foreach($topics as $topic) {
-				$stomp->subscribe($topic, array("id" => "zkb-karbo".$baseAddr, "persistent" => "true", "ack" => "client", "prefetch-count" => 1));
+				$stomp->subscribe($topic, array("id" => "k-".$baseAddr, "persistent" => "true", "ack" => "client", "prefetch-count" => 1));
 			}
-			echo "zkb-karbo".$baseAddr;
 			$stompCount = 0;
 			$timer = new Timer();
 			while($timer->stop() < 65000)

@@ -87,9 +87,35 @@
 			.topBoxes td {
 			vertical-align: middle !important;
 			}
+
+				.videoContent {
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		overflow: hidden;
+		z-index: -100;
+	}
+
+	.videoBackground {
+		position: absolute;
+		top: 0;
+		left: 0;
+		width: 100%
+		height: 100%;
+	}
+
 		</style>
 	</head>
 	<body>
+		{% if showVideo != "false" %}
+		<div class="videoContent">
+	<video autoplay loop class="videoBackground" style="width: 100%">
+		<source src="/themes/zkillboard/video/stargate_01.mp4" type="video/mp4">
+	</video>
+</div>
+		{% endif %}
 		<div class="content">
 
 			<!-- The navbar -->
@@ -105,7 +131,7 @@
 			<div class="container nobackground">
 				<!-- Notification header -->
 				{% if getNotification() %}
-					<div class="alert" style="padding: 0px; margin: 0px; psition: relative; top: -15px;"><center>{{ getNotification()|raw }}</center></div>
+					<div class="alert alert-success" style="padding: 0px; margin: 0px; psition: relative; top: -15px;"><center>{{ getNotification()|raw }}</center></div>
 				{% endif %}
 
 				<!-- Account balance information -->

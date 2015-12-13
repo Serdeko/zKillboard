@@ -26,7 +26,7 @@ if (!isset($json_options["A"])) $json_options["A"] = array();
 if (!isset($json_options["B"])) $json_options["B"] = array();
 
 $redirect = false;
-if (isset($_GET["left"])) 
+if (isset($_GET["left"]))
 {
 	$entity = $_GET["left"];
 	if (!isset($json_options["A"])) $json_options["A"] = array();
@@ -55,7 +55,10 @@ $regionName = Info::getRegionName(Info::getRegionIDFromSystemID($systemID));
 $unixTime = strtotime($relatedTime);
 $time = date("Y-m-d H:i", $unixTime);
 
-$exHours = 1;
+if(isset($_GET["timeframe"]))
+	$exHours = (int) $_GET["timeframe"] == 0 ? 1 : (int) $_GET["timeframe"];
+else
+	$exHours = 1;
 if (((int) $exHours) < 1 || ((int) $exHours > 12)) $exHours = 1;
 
 $key = "$systemID:$relatedTime:$exHours:" . json_encode($json_options);

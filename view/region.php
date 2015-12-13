@@ -16,6 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+$app->redirect("/");
+
 // Find the regionID
 if(!is_numeric($region))
 	$regionID = (int) Db::queryField("SELECT regionID FROM ccp_regions WHERE regionName = :regionName", "regionID", array(":regionName" => $region), 3600);
@@ -34,6 +36,7 @@ $parameters = Util::convertUriToParameters();
 // Unset the region => id, and make it regionID => id
 unset($parameters["region"]);
 $parameters["regionID"] = $regionID;
+$parameters["index"] = "regionID";
 
 // Make sure that the pageType is correct..
 $subPageTypes = array("page", "groupID", "month", "year", "shipTypeID");

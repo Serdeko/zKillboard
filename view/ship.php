@@ -60,14 +60,14 @@ $kills = $pageType ==  "kills" ? Kills::getKills($parameters) : array();
 $losses = $pageType == "losses" ? Kills::getKills($parameters) : array();
 
 // Solo parameters
-$soloParams = $parameters;
-if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
-	$soloParams["mixed"] = true;
-}
+//$soloParams = $parameters;
+//if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
+//	$soloParams["mixed"] = true;
+//}
 
 // Solo kills
-$soloKills = Kills::getKills($soloParams);
-$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $shipTypeID);
+//$soloKills = Kills::getKills($soloParams);
+//$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $shipTypeID);
 
 $topLists = array();
 $topKills = array();
@@ -148,7 +148,7 @@ $renderParams = array(
 	"key" => "ship",
 	"id" => $shipTypeID,
 	"pageType" => $pageType,
-	"solo" => $solo,
+//	"solo" => $solo,
 	"topLists" => $topLists,
 	"summaryTable" => $stats,
 	"pager" => (sizeof($kills) + sizeof($losses) >= $limit),

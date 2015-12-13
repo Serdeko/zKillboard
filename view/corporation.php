@@ -34,11 +34,15 @@ $parameters = Util::convertUriToParameters();
 // Unset the corporation => id, and make it corporationID => id
 unset($parameters["corporation"]);
 $parameters["corporationID"] = $corporationID;
+$parameters["index"] = "corporationID_dttm";
 
 // Make sure that the pageType is correct..
 $subPageTypes = array("page", "groupID", "month", "year", "shipTypeID");
 if(in_array($pageType, $subPageTypes))
 	$pageType = "overview";
+
+if($pageType == "groupID")
+        $app->redirect("/");
 
 // Some defaults
 @$page = max(1, $parameters["page"]);
@@ -60,14 +64,14 @@ $kills = $pageType ==  "kills" ? Kills::getKills($parameters) : array();
 $losses = $pageType == "losses" ? Kills::getKills($parameters) : array();
 
 // Solo parameters
-$soloParams = $parameters;
-if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
-	$soloParams["mixed"] = true;
-}
+//$soloParams = $parameters;
+//if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
+//	$soloParams["mixed"] = true;
+//}
 
 // Solo kills
-$soloKills = Kills::getKills($soloParams);
-$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $corporationID);
+//$soloKills = Kills::getKills($soloParams);
+//$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $corporationID);
 
 
 $topLists = array();
@@ -154,7 +158,7 @@ if ($pageType == "wars" && $extra["hasWars"]) {
 	$extra["wars"][] = War::getNamedWars("Closed Wars - Defending", "select * from zz_wars where defender = $warID and timeFinished is not null order by timeFinished desc");
 }
 
-$extra["supers"] = array();
+/*$extra["supers"] = array();
 if ($pageType == "supers")
 {
 	$minKillID = Db::queryField("select min(killID) killID from zz_participants where dttm >= date_sub(now(), interval 90 day) and dttm < date_sub(now(), interval 89 day)", "killID", array(), 900);
@@ -169,7 +173,8 @@ if ($pageType == "supers")
 
 	Info::addInfo($data);
 	$extra["supers"] = $data;
-}
+}*/
+
 if($pageType == "members")
 {
 	$memberLimit = 100;
@@ -201,7 +206,7 @@ $renderParams = array(
 	"key" => "corporation",
 	"id" => $corporationID,
 	"pageType" => $pageType,
-	"solo" => $solo,
+	//"solo" => $solo,
 	"topLists" => $topLists,
 	"summaryTable" => $stats,
 	"pager" => (sizeof($kills) + sizeof($losses) >= $limit),

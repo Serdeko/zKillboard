@@ -34,9 +34,10 @@ $parameters = Util::convertUriToParameters();
 // Unset the alliance => id, and make it allianceID => id
 unset($parameters["alliance"]);
 $parameters["allianceID"] = $allianceID;
+$parameters["index"] = "allianceID_dttm";
 
 // Make sure that the pageType is correct..
-$subPageTypes = array("page", "groupID", "month", "year", "shipTypeID");
+$subPageTypes = array("page", "month", "year", "shipTypeID");
 if(in_array($pageType, $subPageTypes))
 	$pageType = "overview";
 
@@ -60,18 +61,21 @@ $kills = $pageType ==  "kills" ? Kills::getKills($parameters) : array();
 $losses = $pageType == "losses" ? Kills::getKills($parameters) : array();
 
 // Solo parameters
-$soloParams = $parameters;
-if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
-	$soloParams["mixed"] = true;
-}
+//$soloParams = $parameters;
+//if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
+//	$soloParams["mixed"] = true;
+//}
 
 // Solo kills
-$soloKills = Kills::getKills($soloParams);
-$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $allianceID);
+//$soloKills = Kills::getKills($soloParams);
+//$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $allianceID);
 
 
 $topLists = array();
 $topKills = array();
+if($pageType == "groupID")
+	$app->redirect("/");
+
 if ($pageType == "top" || $pageType == "topalltime") {
 	$topParameters = $parameters; // array("limit" => 10, "kills" => true, "$columnName" => $allianceID);
 	$topParameters["limit"] = 10;
@@ -161,7 +165,7 @@ if ($pageType == "wars" && $extra["hasWars"]) {
 	$extra["wars"][] = War::getNamedWars("Closed Wars - Defending", "select * from zz_wars where defender = $warID and timeFinished is not null order by timeFinished desc");
 }
 
-$extra["supers"] = array();
+/*$extra["supers"] = array();
 if ($pageType == "supers")
 {
 	$minKillID = Db::queryField("select min(killID) killID from zz_participants where dttm >= date_sub(now(), interval 90 day) and dttm < date_sub(now(), interval 89 day)", "killID", array(), 900);
@@ -175,7 +179,7 @@ if ($pageType == "supers")
 
 	Info::addInfo($data);
 	$extra["supers"] = $data;
-}
+}*/
 
 if($pageType == "members")
 {
@@ -208,7 +212,7 @@ $renderParams = array(
 	"key" => "alliance",
 	"id" => $allianceID,
 	"pageType" => $pageType,
-	"solo" => $solo,
+//	"solo" => $solo,
 	"topLists" => $topLists,
 	"corps" => $corpList,
 	"corpStats" => $corpStats,

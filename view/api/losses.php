@@ -34,11 +34,9 @@ class api_losses implements apiEndpoint
 				"allianceID" => "list losses for a certain allianceID.",
 				"factionID" => "list losses for a certain factionID.",
 				"shipTypeID" => "list losses where a certain shipTypeID is involved.",
-				"groupID" => "list losses where a certain ship groupID is involved.",
 				"solarSystemID" => "list losses that happened in a certain solarSystemID.",
 				"regionID" => "list losses that happened in a certain regionID.",
 				"w-space" => "Only list losses that has happened in wormhole space-",
-				"solo" => "Only list losses where number of involved was 1.",
 				"page" => "Pagination.",
 				"orderDirection" => "ASC: Oldest to newest, DESC: newest to oldest (DESC is faster than ASC, by a factor 100).",
 				"pastSeconds" => "only show losses that has happened in the past number of seconds.",
@@ -58,10 +56,8 @@ class api_losses implements apiEndpoint
 				"allianceID",
 				"factionID",
 				"shipTypeID",
-				"groupID",
 				"solarSystemID",
 				"regionID",
-				"solo",
 				"w-space"
 			)
 		);
@@ -92,7 +88,7 @@ class api_losses implements apiEndpoint
 		$paramters["api"] = true;
 
 		// At least one of these parameters is required
-		$requiredM = array("characterID", "corporationID", "allianceID", "factionID", "shipTypeID", "groupID", "solarSystemID", "regionID", "solo", "w-space");
+		$requiredM = array("characterID", "corporationID", "allianceID", "factionID", "shipTypeID", "solarSystemID", "regionID", "w-space");
 		$hasRequired = false;
 		foreach($requiredM as $required)
 			$hasRequired |= array_key_exists($required, $parameters);

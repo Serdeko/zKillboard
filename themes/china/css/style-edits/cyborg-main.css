@@ -1,20 +1,8 @@
-@media (min-width: 768px) {
-	body {
-		background-color: #060606;
-		background-image: url("/themes/zkillboard/img/bg_cyborg_blueish.jpg");
-		-webkit-background-size: cover;
-		-moz-background-size: cover;
-		-o-background-size: cover;
-		background-size: cover;
-		background-attachment: fixed;
-	}
-}
-
 .nobackground {
 	background: #060606;
-	background-color: rgba(6,6,6,0.95);
-	box-shadow: 0 0 5px 5px rgba(6,6,6,0.95);
-	opacity: 0.95;
+	background-color: rgba(6,6,6,0.85);
+	box-shadow: 0 0 5px 5px rgba(6,6,6,0.85);
+	opacity: 0.85;
 }
 
 .table tbody tr.error td

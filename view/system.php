@@ -34,6 +34,7 @@ $parameters = Util::convertUriToParameters();
 // Unset the solarSystem => id, and make it solarSystemID => id
 unset($parameters["solarSystem"]);
 $parameters["solarSystemID"] = $solarSystemID;
+$parameters["index"] = "solarSystemID_dttm";
 
 // Make sure that the pageType is correct..
 $subPageTypes = array("page", "groupID", "month", "year", "shipTypeID");
@@ -59,14 +60,14 @@ $mixed = $pageType == "overview" ? Kills::getKills($parameters) : array();
 $kills = $pageType ==  "kills" ? Kills::getKills($parameters) : array();
 
 // Solo parameters
-$soloParams = $parameters;
-if (!isset($parameters["kills"])) {
-	$soloParams["mixed"] = true;
-}
+//$soloParams = $parameters;
+//if (!isset($parameters["kills"])) {
+//	$soloParams["mixed"] = true;
+//}
 
 // Solo kills
-$soloKills = Kills::getKills($soloParams);
-$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $solarSystemID);
+//$soloKills = Kills::getKills($soloParams);
+//$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $solarSystemID);
 
 
 $topLists = array();
@@ -136,7 +137,7 @@ $renderParams = array(
 	"key" => "system",
 	"id" => $solarSystemID,
 	"pageType" => $pageType,
-	"solo" => $solo,
+//	"solo" => $solo,
 	"topLists" => $topLists,
 	"summaryTable" => $stats,
 	"pager" => (sizeof($kills) >= $limit),

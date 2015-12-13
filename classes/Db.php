@@ -100,6 +100,9 @@ class Db
 			if($pdo == NULL)
 				return;
 
+			// add page to the query
+			$requestURI = isset($_SERVER["REQUEST_URI"]) ? $_SERVER["REQUEST_URI"] : "";
+			$query = $query . " /* " . $requestURI . " */";
 			// Prepare the query
 			$stmt = $pdo->prepare($query);
 
@@ -306,7 +309,7 @@ class Db
 	{
 		StatsD::increment("website_queryCount");
 
-		if ($duration < 500)  // Don't log queries taking less than 10 seconds.
+		if ($duration < 2000)  // Don't log queries taking less than 10 seconds.
 			return;
 
 		global $baseAddr;

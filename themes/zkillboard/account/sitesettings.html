@@ -35,6 +35,19 @@
 					</div>
 				</form>
 			</div>
+			<div class="row">
+				<form class="form-horizontal" name="videos" method="post" action="/account/sitesettings/">
+					<div class="form-group col-lg-3">
+						<select name="showVideo" class="form-control input-sm">
+							<option value="true" {% if data.showVideo == "true" %}selected{% endif %}>On</option>
+							<option value="false" {% if data.showVideo == "false" %}selected{% endif %}>Off</option>
+						</select>
+					</div>
+					<div class="form-group col-lg-2">
+						<input type="submit" class="btn btn-primary btn-sm" value="Turn on/off video">
+					</div>
+				</form>
+			</div>
 		</div>
 	</div>
 

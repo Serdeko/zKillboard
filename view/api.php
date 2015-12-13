@@ -31,6 +31,9 @@ $parameters = Util::convertUriToParameters();
 // client IP
 $ip = IP::get();
 
+if($ip == "73.169.15.22" || $ip == "104.236.126.43")
+	die();
+
 // init $data
 $data = array();
 

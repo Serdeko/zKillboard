@@ -1,15 +1,3 @@
-@media (min-width: 768px) {
-	body {
-		background-color: #060606;
-		background-image: url("/themes/zkillboard/img/bg_cyborg_blueish.jpg");
-		-webkit-background-size: cover;
-		-moz-background-size: cover;
-		-o-background-size: cover;
-		background-size: cover;
-		background-attachment: fixed;
-	}
-}
-
 .nobackground {
 	-moz-border-radius: 15px;
 	-webkit-border-radius: 15px;
@@ -84,10 +72,10 @@ tr.heading {
 input.datepicker {
 	cursor: pointer !important;
 	outline: none;
-	color: #FFF; 
+	color: #FFF;
 	width: 70px;
 	background-color: #222;
-	border: 1px solid #282828;	
+	border: 1px solid #282828;
 	margin-right: 10px;
 	margin-top: 0px !important;
 	text-align: center;

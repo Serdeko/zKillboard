@@ -29,7 +29,6 @@
 		{% endif %}
 		<li class="{{ isActive('Overview', pageType) }}"><a href="/{{ key }}/{{ id }}/">Overview</a></li>
 		<li class="{{ isActive('Kills', pageType) }}"><a href="/{{ key }}/{{ id }}/kills/{{YWMurl}}">Kills</a></li>
-		<li class="{{ isActive('Solo', pageType) }} hidden-xs"><a href="/{{ key }}/{{ id }}/solo/{{YWMurl}}">Solo</a></li>
 		<li class="{{ isActive('Losses', pageType) }}"><a href="/{{ key }}/{{ id }}/losses/{{YWMurl}}">Losses</a></li>
 	{% if key == "ship" %}
 		<li class="{{ isActive('Description', pageType) }}"><a href="/item/{{ id }}/">Description</a></li>
@@ -50,7 +49,6 @@
 	{% if key == "corporation" or key == "alliance" %}
 	<li class="{{ isActive('members', pageType) }} hidden-xs"><a href="/{{ key }}/{{ id }}/members/">Members</a></li>
 	{% endif %}
-	<li class="{{ isActive('supers', pageType) }} hidden-xs"><a href="/{{ key }}/{{ id }}/supers/">Supers</a></li>
 	{% if extra.hasWars > 0 %}
 	<li class="{{ isActive('wars', pageType) }} hidden-xs"><a href="/{{ key }}/{{ id }}/wars/">Wars</a></li>
 	{% endif %}
@@ -90,7 +88,7 @@
 </div>
 
 <div class="row">
-{% if pageType == 'overview' or pageType == 'kills' or pageType == 'solo' or pageType == 'losses' %}
+{% if pageType == 'overview' or pageType == 'kills' or pageType == 'losses' %}
   <div class="col-lg-10 pull-left" style="padding-left: 0px;">
     {% if mixed %}
         {% set killListTitle = 'Recent Activity' %}
@@ -106,12 +104,6 @@
     {% set killListTitle = 'Kills' %}
     {% set numPages = killPages %}
 	{% set killList = kills %}
-	{% set isEmbedded = true %}
-{% elseif pageType == 'solo' %}
-      {% set topTitle = 'Most Valuable Solo Kills - Last 7 Days' %}
-    {% set killListTitle = 'Solo' %}
-    {% set numPages = soloPages %}
-	{% set killList = solo %}
 	{% set isEmbedded = true %}
 {% elseif pageType == 'losses' %}
       {% set topTitle = 'Most Valuable Losses - Last 7 Days' %}
@@ -149,13 +141,6 @@
 	{% include 'components/top_list.html' %}
 {% elseif pageType == 'corpstats' %}
 	{% include 'components/corpstats.html' %}
-{% elseif pageType == 'supers' %}
-	<h3>Intel - Supers <small>(Last 3 months)</small></h3>
-	{% set fieldset = extra.supers.titans %}
-	{% include 'components/intel_table.html' %}
-	{% set fieldset = extra.supers.moms %}
-	{% include 'components/intel_table.html' %}
-	<div class="clearfix"/>
 {% elseif pageType == 'wars' %}
 	{% for row in extra.wars %}
         <div class="pull-left col-lg-6">

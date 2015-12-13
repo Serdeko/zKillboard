@@ -172,6 +172,9 @@ class Util
 		{
 			$value = $currentIndex + 1 < count($split) ? $split[$currentIndex + 1] : null;
 			switch ($key) {
+				case "groupID":
+					// do nothing
+				break;
 				case "kills":
 				case "losses":
 				case "w-space":
@@ -187,7 +190,6 @@ class Util
 				case "factionID":
 				case "shipID":
 				case "shipTypeID":
-				case "groupID":
 				case "solarSystemID":
 				case "systemID":
 				case "regionID":
@@ -211,8 +213,8 @@ class Util
 				break;
 				case "orderDirection":
 					if (!($value == "asc" || $value == "desc")) throw new Exception("Invalid orderDirection!  Allowed: asc, desc");
-					$parameters[$key] = "desc";
-					$parameters[$key] = $value;
+					$parameters[$key] = "desc"; // only desc
+					//$parameters[$key] = $value;
 				break;
 				case "pastSeconds":
 					$value = (int) $value;

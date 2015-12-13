@@ -29,6 +29,7 @@ $parameters = Util::convertUriToParameters();
 // Unset the group => id, and make it groupID => id
 unset($parameters["group"]);
 $parameters["groupID"] = $groupID;
+$parameters["index"] = "groupID";
 
 // Make sure that the pageType is correct..
 $subPageTypes = array("page", "group", "month", "year", "ship");
@@ -54,14 +55,14 @@ $mixed = $pageType == "overview" ? Kills::getKills($parameters) : array();
 $kills = $pageType ==  "kills" ? Kills::getKills($parameters) : array();
 
 // Solo parameters
-$soloParams = $parameters;
-if (!isset($parameters["kills"])) {
-	$soloParams["mixed"] = true;
-}
+//$soloParams = $parameters;
+//if (!isset($parameters["kills"])) {
+//	$soloParams["mixed"] = true;
+//}
 
 // Solo kills
-$soloKills = Kills::getKills($soloParams);
-$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $groupID);
+//$soloKills = Kills::getKills($soloParams);
+//$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $groupID);
 
 $topLists = array();
 $topKills = array();
@@ -124,7 +125,7 @@ $renderParams = array(
 	"key" => "group",
 	"id" => $groupID,
 	"pageType" => $pageType,
-	"solo" => $solo,
+//	"solo" => $solo,
 	"topLists" => $topLists,
 	"pager" => (sizeof($kills) >= $limit),
 	"datepicker" => true,

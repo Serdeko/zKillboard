@@ -34,11 +34,15 @@ $parameters = Util::convertUriToParameters();
 // Unset the character => id, and make it characterID => id
 unset($parameters["character"]);
 $parameters["characterID"] = $characterID;
+$parameters["index"] = "characterID_dttm";
 
 // Make sure that the pageType is correct..
 $subPageTypes = array("page", "groupID", "month", "year", "shipTypeID");
 if(in_array($pageType, $subPageTypes))
 	$pageType = "overview";
+
+if($pageType == "groupID")
+        $app->redirect("/");
 
 // Some defaults
 @$page = max(1, $parameters["page"]);
@@ -60,14 +64,14 @@ $kills = $pageType ==  "kills" ? Kills::getKills($parameters) : array();
 $losses = $pageType == "losses" ? Kills::getKills($parameters) : array();
 
 // Solo parameters
-$soloParams = $parameters;
-if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
-	$soloParams["mixed"] = true;
-}
+//$soloParams = $parameters;
+//if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
+//	$soloParams["mixed"] = true;
+//}
 
 // Solo kills
-$soloKills = Kills::getKills($soloParams);
-$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $characterID);
+//$soloKills = Kills::getKills($soloParams);
+//$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $characterID);
 
 $topLists = array();
 $topKills = array();
@@ -154,7 +158,7 @@ $renderParams = array(
 	"key" => "character",
 	"id" => $characterID,
 	"pageType" => $pageType,
-	"solo" => $solo,
+	//"solo" => $solo,
 	"topLists" => $topLists,
 	"summaryTable" => $stats,
 	"pager" => (sizeof($kills) + sizeof($losses) >= $limit),

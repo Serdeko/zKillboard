@@ -34,6 +34,7 @@ $parameters = Util::convertUriToParameters();
 // Unset the faction => id, and make it factionID => id
 unset($parameters["faction"]);
 $parameters["factionID"] = $factionID;
+$parameters["index"] = "factionID_dttm";
 
 // Make sure that the pageType is correct..
 $subPageTypes = array("page", "groupID", "month", "year", "shipTypeID");
@@ -60,14 +61,14 @@ $kills = $pageType ==  "kills" ? Kills::getKills($parameters) : array();
 $losses = $pageType == "losses" ? Kills::getKills($parameters) : array();
 
 // Solo parameters
-$soloParams = $parameters;
-if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
-	$soloParams["mixed"] = true;
-}
+//$soloParams = $parameters;
+//if (!isset($parameters["kills"]) || !isset($parameters["losses"])) {
+//	$soloParams["mixed"] = true;
+//}
 
 // Solo kills
-$soloKills = Kills::getKills($soloParams);
-$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $factionID);
+//$soloKills = Kills::getKills($soloParams);
+//$solo = Kills::mergeKillArrays($soloKills, array(), $limit, $columnName, $factionID);
 
 
 $topLists = array();
@@ -142,7 +143,7 @@ if ($mixedKills)
 $prevID = Db::queryField("select factionID from zz_factions where factionID < :id order by factionID desc limit 1", "factionID", array(":id" => $factionID), 300);
 $nextID = Db::queryField("select factionID from zz_factions where factionID > :id order by factionID asc limit 1", "factionID", array(":id" => $factionID), 300);
 
-$extra["supers"] = array();
+/*$extra["supers"] = array();
 if ($pageType == "supers")
 {
 	$minKillID = Db::queryField("select min(killID) killID from zz_participants where dttm >= date_sub(now(), interval 90 day) and dttm < date_sub(now(), interval 89 day)", "killID", array(), 900);
@@ -156,7 +157,7 @@ if ($pageType == "supers")
 
 	Info::addInfo($data);
 	$extra["supers"] = $data;
-}
+}*/
 
 $renderParams = array(
 	"pageName" => $pageName,
@@ -169,14 +170,14 @@ $renderParams = array(
 	"key" => "faction",
 	"id" => $factionID,
 	"pageType" => $pageType,
-	"solo" => $solo,
+	//"solo" => $solo,
 	"topLists" => $topLists,
 	"summaryTable" => $stats,
 	"pager" => (sizeof($kills) + sizeof($losses) >= $limit),
 	"datepicker" => true,
 	"prevID" => $prevID,
 	"nextID" => $nextID,
-	"extra" => $extra
+	//"extra" => $extra
 );
 
 $app->etag(md5(serialize($renderParams)));

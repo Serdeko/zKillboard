@@ -48,7 +48,7 @@ class cli_sitemap implements cliCommand
 			$locations[] = "https://$baseAddr/sitemaps/${type}s.xml";
 		}
 
-		$killIDs = Db::query("select distinct killID from zz_participants order by killID desc limit 50000");
+		$killIDs = Db::query("select killID from zz_participants where isVictim = 1 order by killID desc limit 50000");
 		$xml = new SimpleXMLElement('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd"/>');
 		foreach ($killIDs as $row) {
 			$killID = $row["killID"];

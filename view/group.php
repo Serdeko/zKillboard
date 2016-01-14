@@ -29,7 +29,7 @@ $parameters = Util::convertUriToParameters();
 // Unset the group => id, and make it groupID => id
 unset($parameters["group"]);
 $parameters["groupID"] = $groupID;
-$parameters["index"] = "groupID";
+$parameters["index"] = "vGroupID_dttm";
 
 // Make sure that the pageType is correct..
 $subPageTypes = array("page", "group", "month", "year", "ship");

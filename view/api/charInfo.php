@@ -46,24 +46,24 @@ class api_charInfo implements apiEndpoint
 		$data = json_decode(Db::queryField("SELECT history FROM zz_characters WHERE characterID = :charID", "history", array(":charID" => $characterID)), true);
 		$corporationID = $data["corporationID"];
 		$allianceID = $data["allianceID"];
-		//$lastSeenSystemID = Db::queryField("SELECT solarSystemID FROM zz_participants WHERE characterID = :charID ORDER BY dttm DESC LIMIT 1", "solarSystemID", array(":charID" => $characterID));
-		//$corpActiveSystemID = Db::queryField("SELECT solarSystemID, count(killID) AS hits FROM zz_participants WHERE characterID = :charID AND corporationID = :corpID AND dttm >= date_sub(now(), interval 30 day) GROUP BY solarSystemID ORDER BY hits DESC LIMIT 10000", "solarSystemID", array(":charID" => $characterID, ":corpID" => $corporationID));
-		//$allianceActiveSystemID = Db::queryField("SELECT solarSystemID, count(killID) AS hits FROM zz_participants WHERE characterID = :charID AND allianceID = :alliID AND dttm >= date_sub(now(), interval 30 day) GROUP BY solarSystemID ORDER BY hits DESC LIMIT 10000", "solarSystemID", array(":charID" => $characterID, ":alliID" => $allianceID));
+		$lastSeenSystemID = Db::queryField("SELECT solarSystemID FROM zz_participants WHERE characterID = :charID ORDER BY dttm DESC LIMIT 1", "solarSystemID", array(":charID" => $characterID));
+		$corpActiveSystemID = Db::queryField("SELECT solarSystemID, count(killID) AS hits FROM zz_participants WHERE characterID = :charID AND corporationID = :corpID AND dttm >= date_sub(now(), interval 30 day) GROUP BY solarSystemID ORDER BY hits DESC LIMIT 10000", "solarSystemID", array(":charID" => $characterID, ":corpID" => $corporationID));
+		$allianceActiveSystemID = Db::queryField("SELECT solarSystemID, count(killID) AS hits FROM zz_participants WHERE characterID = :charID AND allianceID = :alliID AND dttm >= date_sub(now(), interval 30 day) GROUP BY solarSystemID ORDER BY hits DESC LIMIT 10000", "solarSystemID", array(":charID" => $characterID, ":alliID" => $allianceID));
 		$data["allianceTicker"] = Db::queryField("SELECT ticker FROM zz_alliances WHERE allianceID = :allianceID", "ticker", array(":allianceID" => $allianceID));
 		$data["corporationTicker"] = Db::queryField("SELECT ticker FROM zz_corporations WHERE corporationID = :corporationID", "ticker", array(":corporationID" => $corporationID));
-		//$data["lastSeenSystem"] = Info::getSystemName($lastSeenSystemID);
-		//$data["lastSeenRegion"] = Info::getRegionName(Info::getRegionIDFromSystemID($lastSeenSystemID));
-		//$data["lastSeenDate"] = Db::queryField("SELECT dttm FROM zz_participants WHERE characterID = :charID ORDER BY dttm DESC LIMIT 1", "dttm", array(":charID" => $characterID));
+		$data["lastSeenSystem"] = Info::getSystemName($lastSeenSystemID);
+		$data["lastSeenRegion"] = Info::getRegionName(Info::getRegionIDFromSystemID($lastSeenSystemID));
+		$data["lastSeenDate"] = Db::queryField("SELECT dttm FROM zz_participants WHERE characterID = :charID ORDER BY dttm DESC LIMIT 1", "dttm", array(":charID" => $characterID));
 		$data["lastSeenShip"] = Info::getShipName(Db::queryField("SELECT shipTypeID FROM zz_participants WHERE characterID = :charID AND shipTypeID != 0 ORDER BY dttm DESC LIMIT 1", "shipTypeID", array(":charID" => $characterID)));
-		//$data["corporationActiveArea"] = Info::getRegionName(Info::getRegionIDFromSystemID($corpActiveSystemID));
-		//$data["allianceActiveArea"] = isset($allianceID) ? Info::getRegionName(Info::getRegionIDFromSystemID($allianceActiveSystemID)) : "";
+		$data["corporationActiveArea"] = Info::getRegionName(Info::getRegionIDFromSystemID($corpActiveSystemID));
+		$data["allianceActiveArea"] = isset($allianceID) ? Info::getRegionName(Info::getRegionIDFromSystemID($allianceActiveSystemID)) : "";
 		$data["lifeTimeKills"] = Db::queryField("SELECT SUM(destroyed) AS kills FROM zz_stats WHERE typeID = :charID", "kills", array(":charID" => $characterID), 3600);
 		$data["lifeTimeLosses"] = Db::queryField("SELECT SUM(lost) AS losses FROM zz_stats WHERE typeID = :charID", "losses", array(":charID" => $characterID), 3600);
 		$data["top10FlownShips"] = Stats::getTopShips(array("characterID" => $characterID, "kills" => true, "month" => date("m"), "year" => date("y"), "limit" => 10), true);
 		$data["top10ActiveSystems"] = Stats::getTopSystems(array("characterID" => $characterID, "kills" => true, "month" => date("m"), "year" => date("y"), "limit" => 10), true);
 		$data["lastUpdatedOnBackend"] = Db::queryField("SELECT lastUpdated FROM zz_characters WHERE characterID = :charID", "lastUpdated", array(":charID" => $characterID));
-		//$data["soloKills"] = Db::queryField("SELECT count(*) as kills FROM zz_participants WHERE characterID = :charID AND isVictim = 0 AND number_involved = 1", "kills", array(":charID" => $characterID));
-		//$data["blobKills"] = Db::queryField("SELECT count(*) as kills FROM zz_participants WHERE characterID = :charID AND isVictim = 0 AND number_involved >= 50", "kills", array(":charID" => $characterID));
+		$data["soloKills"] = Db::queryField("SELECT count(*) as kills FROM zz_participants WHERE characterID = :charID AND isVictim = 0 AND number_involved = 1", "kills", array(":charID" => $characterID));
+		$data["blobKills"] = Db::queryField("SELECT count(*) as kills FROM zz_participants WHERE characterID = :charID AND isVictim = 0 AND number_involved >= 50", "kills", array(":charID" => $characterID));
 
 		if($data["soloKills"] > 0 && $data["blobKills"] > 0)
 			$data["percentageSoloPVPer"] = $data["soloKills"] / $data["blobKills"] * 100;

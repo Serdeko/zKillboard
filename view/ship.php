@@ -34,6 +34,7 @@ $parameters = Util::convertUriToParameters();
 // Unset the shipType => id, and make it shipTypeID => id
 unset($parameters["shipType"]);
 $parameters["shipTypeID"] = $shipTypeID;
+$parameters["index"] = "shipTypeID_dttm";
 
 // Make sure that the pageType is correct..
 $subPageTypes = array("page", "groupID", "month", "year", "shipTypeID");

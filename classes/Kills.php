@@ -71,6 +71,10 @@ class Kills
 		if(stristr($query, "isVictim = '1'"))
 			$query = str_replace("distinct", "", $query);
 
+		// This is a war query, lets replace the entire thing
+		if(isset($parameters["war"]))
+			$query = "SELECT p.killID FROM zz_participants p WHERE p.killID IN (SELECT killID FROM zz_warmails WHERE warID = " . $parameters["war"] . ") AND p.isVictim = 1 ORDER BY $orderBy $orderDirection LIMIT $offset, $limit";
+
 		$cacheTime = array_key_exists("cacheTime", $parameters) ? (int)$parameters["cacheTime"] : 120;
 		$cacheTime = max(120, $cacheTime);
 		if (array_key_exists("log", $parameters)) Db::log($query, array());

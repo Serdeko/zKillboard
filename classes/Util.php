@@ -74,6 +74,8 @@ class Util
 		\Pheal\Core\Config::getInstance()->http_keepalive = true; // default 15 seconds
 		\Pheal\Core\Config::getInstance()->http_keepalive = 10; // KeepAliveTimeout in seconds
 		\Pheal\Core\Config::getInstance()->http_timeout = 30;
+		\Pheal\Core\Config::getInstance()->http_ssl_verifypeer = false;
+
 		if ($phealCacheLocation != null)
 			\Pheal\Core\Config::getInstance()->cache = new \Pheal\Cache\FileStorage($phealCacheLocation); // Implement own cache class that calls statsD
 		\Pheal\Core\Config::getInstance()->log = new PhealLogger();

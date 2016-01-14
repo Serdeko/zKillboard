@@ -20,6 +20,7 @@ $warData = War::getWarInfo($warID);
 $warFinished = Db::queryField("select timeFinished < now() finished from zz_wars where warID = :warID", "finished", array(":warID" => $warID));
 
 $p = array("war" => $warID);
+
 $kills = Kills::getKills($p);
 
 $topPods = array();

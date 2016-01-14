@@ -31,7 +31,6 @@ class cli_stompReceive implements cliCommand
 	public function execute($parameters, $db)
 	{
 		global $stompServer, $stompUser, $stompPassword, $baseAddr, $debug;
-
 		// Ensure the class exists
 		if (!class_exists("Stomp")) {
 			die("ERROR! Stomp not installed!  Check the README to learn how to install Stomp...\n");
@@ -39,7 +38,6 @@ class cli_stompReceive implements cliCommand
 		$topics[] =  "/topic/kills";
 		try {
 			$stomp = new Stomp($stompServer, $stompUser, $stompPassword);
-
 			$stomp->setReadTimeout(1);
 			foreach($topics as $topic) {
 				$stomp->subscribe($topic, array("id" => "k-".$baseAddr, "persistent" => "true", "ack" => "client", "prefetch-count" => 1));
@@ -74,6 +72,7 @@ class cli_stompReceive implements cliCommand
 			}
 			if ($stompCount > 0) Log::log("StompReceive Ended - Received $stompCount kills");
 		} catch (Exception $ex) {
+			var_dump($ex->getMessage());
 			$e = print_r($ex, true);
 			Log::log("StompReceive ended with the error:\n$e\n");
 		}

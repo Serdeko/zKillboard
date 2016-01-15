@@ -34,7 +34,7 @@ class cli_wsreceive implements cliCommand
 		{
 			$wsCount = 0;
 			$timer = new Timer();
-			$client = new WebSocket\Client("wss://ws.eve-kill.net/kills/");
+			$client = new WebSocket\Client("wss://ws.eve-kill.net/kills");
 			while($timer->stop() < 65000)
 			{
 				$killmail = $client->receive();

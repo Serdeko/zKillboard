@@ -329,8 +329,15 @@ class Db
 	public static function getKey($query, $parameters = array())
 	{
 		foreach($parameters as $key => $value)
-			$query .= "|$key|$value";
+		{
+			if(is_array($key))
+				$key = implode("", $key);
 
+			if(is_array($value))
+				$value = implode("", $value);
+
+			$query .= "|$key|$value";
+		}
 		return "Db:" . sha1($query);
 	}
 }

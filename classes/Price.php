@@ -41,7 +41,7 @@ class Price
 
 		// If the price is zero, fetch the last available price, since that's probably right.. i guess.. fml
 		if($price == 0 || $price == NULL)
-			$price = Db::queryField("SELECT lowPrice FROM zz_item_price_lookup WHERE typeID = :typeID ORDER BY priceDate DESC LIMIT 1", "lowPrice", array(":typeID" => $typeID), 0);
+			$price = Db::queryField("SELECT lowPrice FROM zz_item_price_lookup WHERE typeID = :typeID AND lowPrice != 0.00 ORDER BY priceDate DESC LIMIT 1", "lowPrice", array(":typeID" => $typeID), 0);
 		// If price is zero, get the base price
 		if ($price == 0)
 			$price = self::getItemBasePrice($typeID);

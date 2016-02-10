@@ -163,7 +163,8 @@ class Kills
 		$killArray = json_decode($json, true);
 		$killTime = $killArray["killTime"];
 		$items = array();
-		self::addItems($items, $killArray["items"], $killTime);
+		if(isset($killArray["items"]))
+			self::addItems($items, $killArray["items"], $killTime);
 		return $items;
 	}
 

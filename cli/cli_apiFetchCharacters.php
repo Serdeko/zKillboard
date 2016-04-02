@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,10 +28,12 @@ class cli_apiFetchCharacters implements cliCommand
 		return ""; // Space seperated list
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
+		if (Util::isMaintenanceMode()) return;
+		if (Util::is904Error()) return;
 		$keyID = (int) $parameters[0];
-		$vCode = Db::queryField("select vCode from zz_api where keyID = :keyID", "vCode", array(":keyID" => $keyID), 0);
+		$vCode = $db->queryField("select vCode from zz_api where keyID = :keyID", "vCode", array(":keyID" => $keyID), 0);
 
 		if ($keyID == 0 && strlen($vCode) == 0) return;
 
@@ -39,46 +41,43 @@ class cli_apiFetchCharacters implements cliCommand
 		try {
 			$apiKeyInfo = $pheal->ApiKeyInfo();
 		} catch (Exception $ex) {
-			//Log::log("Error with $keyID: " . $ex->getCode() . " " . $ex->getMessage());
+			$db->execute("update zz_api set lastValidation = now() where keyID = :keyID", array(":keyID" => $keyID));
+			//Log::log("Error Validating $keyID: " . $ex->getCode() . " " . $ex->getMessage());
 			Api::handleApiException($keyID, null, $ex);
 			return;
 		}
 
 		// Clear the error code
-		Db::execute("update zz_api set errorCode = 0, lastValidation = now() where keyID = :keyID", array(":keyID" => $keyID));
+		$db->execute("update zz_api set lastValidation = now(), errorCode = 0 where keyID = :keyID", array(":keyID" => $keyID));
 
 		$key = $apiKeyInfo->key;
 		$accessMask = $key->accessMask;
-		$characterIDs = array();            
+		$characterIDs = array();
 		if (Api::hasBits($accessMask)) {
-			$pheal->scope = 'char';
 			foreach ($apiKeyInfo->key->characters as $character) {
 				$characterID = $character->characterID;
 				$characterIDs[] = $characterID;
 				$corporationID = $character->corporationID;
 
-				$isDirector = $apiKeyInfo->key->type == "Corporation";
-				//if ($isDirector) $directorCount++;
-				$m = Db::execute("insert ignore into zz_api_characters (keyID, characterID, corporationID, isDirector, cachedUntil)
-						values (:keyID, :characterID, :corporationID, :isDirector, 0) on duplicate key update corporationID = :corporationID, isDirector = :isDirector",
-						array(":keyID" => $keyID,
-							":characterID" => $characterID,
-							":corporationID" => $corporationID,
-							":isDirector" => $isDirector ? "T" : "F",
-							));
+				$isDirector = $apiKeyInfo->key->type == "Corporation" ? "T" : "F";
+				$count = $db->queryField("select count(*) count from zz_api_characters where keyID = :keyID and isDirector = :isDirector and characterID = :characterID and corporationID = :corporationID", "count", array(":keyID" => $keyID, ":characterID" => $characterID, ":corporationID" => $corporationID, ":isDirector" => $isDirector), 0);
 
-				if ($m > 0) {
-					while (strlen($keyID) < 8) $keyID = " " . $keyID;
-					$charCorp =  ($isDirector ? "corp" : "char");
+				if ($count == 0) {
+					$db->execute("replace into zz_api_characters (keyID, characterID, corporationID, isDirector, cachedUntil) values (:keyID, :characterID, :corporationID, :isDirector, 0)", array(":keyID" => $keyID, ":characterID" => $characterID, ":corporationID" => $corporationID, ":isDirector" => $isDirector));
+
 					$charName = Info::getCharName($characterID, true);
 					$corpName = Info::getCorpName($corporationID, true);
-					Log::log("KeyID: $keyID ($charCorp) Populating: $charName / $corpName");
+					$allianceID = $db->queryField("select allianceID from zz_corporations where corporationID = :corpID", "allianceID", array(":corpID" => $corporationID));
+					$alliName = $allianceID > 0 ? "/ " . Info::getAlliName($allianceID) : "";
+					$type = $isDirector == "T" ? "corp" : "char";
+					while (strlen($keyID) < 8) $keyID = " " . $keyID;
+					Log::log("KeyID: $keyID ($type) Populating $charName / $corpName $alliName");
 				}
 			}
 		}
 		// Clear entries that are no longer tied to this account
-		if (sizeof($characterIDs) == 0) Db::execute("delete from zz_api_characters where keyID = :keyID", array(":keyID" => $keyID));
-		else Db::execute("delete from zz_api_characters where keyID = :keyID and characterID not in (" . implode(",", $characterIDs) . ")",
+		if (sizeof($characterIDs) == 0) $db->execute("delete from zz_api_characters where keyID = :keyID", array(":keyID" => $keyID));
+		else $db->execute("delete from zz_api_characters where keyID = :keyID and characterID not in (" . implode(",", $characterIDs) . ")",
 				array(":keyID" => $keyID));
 	}
 }

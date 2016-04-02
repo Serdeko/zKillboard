@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns#" lang="en" class="no-js">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+		{% if description is not defined %}
+			{% set description =  siteurl ~ " is a killboard for the Massively Multiplayer Online Role Playing Game (MMORPG) EVE-Online." %}
+		{% endif %}
+		<meta name="description" content="{{ description }}">
+		<meta name="title" content="{{ pageTitle }} | {{ siteurl }}">
+		<meta name="keywords" content="eve-online, eve, ccp, ccp games, kills, kill, massively, multiplayer, online, role, playing, game, mmorpg, rank, isk, mmorpg, killboard, zkillboard">
+		<meta name="robots" content="index,follow">
+		<meta name="og:locale" content="en_US">
+		<meta name="og:type" content="website">
+		<meta name="og:site_name" content="{{ siteurl }}">
+		<meta name="fb:app_id" content="{{ fbAppID }}">
+		<meta name="twitter:site" content="@zKillboard">
+		<meta name="twitter:domain" content="{{ fullsiteurl }}">
+		<meta name="application-name" content="{{ siteurl }}"/>
+		<meta name="msapplication-TileColor" content="#000000"/>
+		<meta name="mobile-web-app-capable" content="yes">
+		<link rel="shortcut icon" sizes="310x310" href="/themes/mobile/img/tile/large.png">
+		<link rel="shortcut icon" sizes="70x70" href="/themes/mobile/img/tile/tiny.png">
+		<link rel="shortcut icon" sizes="150x150" href="/themes/mobile/img/tile/square.png">
+		<link rel="shortcut icon" sizes="310x150" href="/themes/mobile/img/tile/wide.png">
+		<link rel="shortcut icon" sizes="16x16" href="/themes/mobile/favicon.ico" />
+		<meta name="msapplication-square70x70logo" content="/themes/mobile/img/tile/tiny.png"/>
+		<meta name="msapplication-square150x150logo" content="/themes/mobile/img/tile/square.png"/>
+		<meta name="msapplication-wide310x150logo" content="/themes/mobile/img/tile/wide.png"/>
+		<meta name="msapplication-square310x310logo" content="/themes/mobile/img/tile/large.png"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>{% block title %}{{ siteurl }}{% endblock %}</title>
+
+		{% if canonical is not defined %}
+			{% set canonical = fullsiteurl ~ requesturi %}
+		{% endif %}
+
+		<link rel="canonical" href="{{ canonical }}">
+		<link rel="search" type="application/opensearchdescription+xml" href="/themes/mobile/xml/zkbsearch.xml" title="search">
+		<link rel="stylesheet" href="//netdna.bootstrapcdn.com/bootswatch/3.1.1/cyborg/bootstrap.min.css">
+		<link rel="stylesheet" href="/themes/mobile/css/datepicker.css">
+		<link rel="stylesheet" href="/themes/mobile/css/main.css">
+		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.0.3/css/font-awesome.min.css">
+
+		{% block style %}
+		{% endblock %}
+
+		{% if showAnalytics != false %}
+			{{ analytics|raw }}
+		{% endif %}
+	</head>
+	<body>
+		<div class="content">
+			<!-- The navbar -->
+			<div class="container" style="margin: 0px; padding: 0px;">
+				{% include "navigationbar.html" %}
+			</div>
+
+			<!-- Maintenance alert -->
+			{% if isMaintenance() %}
+				<div class="alert alert-danger"><center>Site is in maintenance mode<br/><small>During this time no kills are processed<br/>{{ getMaintenanceReason() }}</small></center></div>
+			{% endif %}
+
+			<div class="container" style="padding-right: 0px;">
+				<!-- Notification header -->
+				{% if getNotification() %}
+					<div class="alert" style="padding: 0px; margin: 0px; psition: relative; top: -15px;"><center>{{ getNotification()|raw }}</center></div>
+				{% endif %}
+
+				<!-- Top ad -->
+				{% if showAds != false %}
+					<div class="centered" id="adsensetop" style="margin-bottom: 5px;">
+						{{ mobiletopad|raw }}
+					</div>
+				{% endif %}
+
+				<!-- The text header -->
+				{% block header %}{% endblock %}
+				<!-- The actual site content-->
+				{% block content %}Default content{% endblock %}
+
+				<div class="clearfix"></div>
+
+				<!-- Bottom ad -->
+				{% if showAds != false %}
+					<div class="centered" id="adsensebottom" style="margin-bottom: 5px;">
+					{{ mobilebottomad|raw }}
+					</div>
+				{% endif %}
+
+				<!-- Footer -->
+				<div class="hidden-xs">{% include "footer.html" %}</div>
+			</div>
+
+			<!-- Modals -->
+			<div class="container">
+				{% block modal %}{% endblock %}
+			</div>
+		</div>
+
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.1.0/jquery.timeago.min.js"></script>
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.1.1/js/bootstrap.min.js"></script>
+		<script type="text/javascript" src="/themes/mobile/js/common.js?a=1"></script>
+
+		{% if disqusLoad %}
+			<script type="text/javascript">
+				var disqus_shortname = '{{ disqusShortName }}';
+				(function () {
+				var s = document.createElement('script'); s.async = true;
+				s.type = 'text/javascript';
+				s.src = '//' + disqus_shortname + '.disqus.com/count.js';
+				(document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+				}());
+			</script>
+		{% endif %}
+		{% if disqusSSO and disqusLoad %}
+			<script type="text/javascript">
+				{{ disqusSSO|raw }}
+			</script>
+		{% endif %}
+		{% block script %}
+		{% endblock %}
+	</body>
+</html>

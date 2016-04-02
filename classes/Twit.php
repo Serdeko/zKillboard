@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -17,6 +17,9 @@
  */
 class Twit
 {
+	/**
+	 * @param string $message
+	 */
 	public static function sendMessage($message)
 	{
 		global $consumerKey, $consumerSecret, $accessToken, $accessTokenSecret;

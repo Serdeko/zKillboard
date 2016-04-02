@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,139 +18,49 @@
 
 class Price
 {
-	public static function setPrice($typeID, $price)
-	{
-		return Db::execute("replace into zz_prices (typeID, price) values (:typeID, :price)", array(":typeID" => $typeID, ":price" => $price));
-	}
-
-	public static function updatePrice($killID, $tempTables = false)
-	{
-		$temp = $tempTables ? "_temporary" : "";
-		$items = Db::query("select typeID, qtyDropped, qtyDestroyed from zz_items$temp where killID = :killID", array(":killID" => $killID), 0);
-		$shipTypeID = Db::queryField("select shipTypeID from zz_participants$temp where isVictim = 1 and killID = :killID", "shipTypeID", array(":killID" => $killID), 0);
-
-		$total = $shipTypeID ? self::getItemPrice($shipTypeID) : 0;
-		if ($items) foreach ($items as $item) {
-			$typeID = $item["typeID"];
-			$price = self::getItemPrice($typeID);
-			$total += $price * ($item["qtyDropped"] + $item["qtyDestroyed"]);
-			Db::execute("update zz_items$temp set price = :price where typeID = :typeID and killID = :killID",
-									array(":typeID" => $typeID, ":killID" => $killID, ":price" => $price));
-		}
-
-		Db::execute("update zz_participants$temp set total_price = :total where killID = :killID", array(":killID" => $killID, ":total" => $total));
-
-		return $total;
-	}
-
-
 	/**
 	 * Obtain the price of an item.
 	 *
 	 * @static
-	 * @param	$typeID int The typeID of the item
+	 * @param $typeID int The typeID of the item
+	 * @param $date date The date of the item price value
+     * @param $doPopulate bool If set, retrieve the market values from CCP
 	 * @return double The price of the item.
 	 */
-	public static function getItemPrice($typeID)
+	public static function getItemPrice($typeID, $date)
 	{
-		if (in_array($typeID, array(588, 596, 601, 670, 606))) return 10000; // Pods and noobships
-		if (in_array($typeID, array(25, 51, 29148, 3468))) return 1; // Male Corpse, Female Corpse, Bookmarks, Plastic Wrap
+		// Pods and noobships
+		if(in_array($typeID, array(588, 596, 601, 670, 606, 33328)))
+			return 10000;
+		// Male Corpse, Female Corpse, Bookmarks, Plastic Wrap
+		if(in_array($typeID, array(25, 51, 29148, 3468)))
+			return 1;
 
-		$price = Price::getDatabasePrice($typeID);
-		if ($price == 0) $price = Price::getMarketPrice($typeID);
-		if ($price == 0) $price = Price::getMarketPrice($typeID, false);
-		if ($price == 0) $price = Price::getItemBasePrice($typeID);
-		if ($price == 0) $price = 0.01; // Give up
+		$date = isset($date) ? $date : date("Y-m-d");
+		$price = Db::queryField("SELECT lowPrice FROM zz_item_price_lookup WHERE typeID = :typeID AND priceDate = :priceDate", "lowPrice", array(":typeID" => $typeID, ":priceDate" => $date), 0);
+
+		// If the price is zero, fetch the last available price, since that's probably right.. i guess.. fml
+		if($price == 0 || $price == NULL)
+			$price = Db::queryField("SELECT lowPrice FROM zz_item_price_lookup WHERE typeID = :typeID AND lowPrice != 0.00 ORDER BY priceDate DESC LIMIT 1", "lowPrice", array(":typeID" => $typeID), 0);
+		// If price is zero, get the base price
+		if ($price == 0)
+			$price = self::getItemBasePrice($typeID);
+		// If price is still zero, just set it to 1 cent
+		if ($price == 0)
+			$price = 0.01;
 
 		return $price;
 	}
 
 	/**
 	 * @static
-	 * @param	$typeID int
-	 * @return double The price of the typeID, if found.	Zero if not found.
-	 */
-	protected static function getDatabasePrice($typeID)
-	{
-		$price = Db::queryField("select price from zz_prices where typeID = :typeID", "price",
-														array(":typeID" => $typeID));
-		if ($price != null) return $price;
-		return 0;
-	}
-
-	/**
-	 * @static
-	 * @param	$typeID int
-	 * @return null
-	 */
-	protected static function getItemBasePrice($typeID)
-	{
-		// Market failed, faction pricing failed, do we have a basePrice in the database?
-		$price = Db::queryField("select basePrice from ccp_invTypes where typeID = :typeID", "basePrice", array(":typeID" => $typeID));
-		Price::storeItemPrice($typeID, $price);
-		if ($price != null) return $price;
-	}
-
-	/**
-	 * Get the market price of the item in Jita.
-	 * Attempts to use the sell median price first, if that value isn't set it will use
-	 * the median of all values.
-	 *
-	 * @param int $typeID
+	 * @param $typeID int
 	 * @return double
 	 */
-	public static function getMarketPrice($typeID, $useJita = false)
+	private static function getItemBasePrice($typeID)
 	{
-		if ($useJita) {
-			// Get the Jita price.
-			$eveCentralApi = "http://api.eve-central.com/api/marketstat?usesystem=30000142&typeid=$typeID";
-		} else {
-			$eveCentralApi = "http://api.eve-central.com/api/marketstat?typeid=$typeID";
-		}
-		$result = Cache::get($eveCentralApi);
-		if ($result === FALSE) {
-			try {
-				Util::getPheal();
-				$result = Pheal::request_http_curl($eveCentralApi, array());
-				Cache::set($eveCentralApi, $result, 600);
-			} catch (Exception $ex) {
-				return 0;
-			}
-		}
-		$xml = new SimpleXMLElement($result);
-		@$sellMedian = (double)$xml->marketstat->type->sell->median;
-		@$allMedian = (double)$xml->marketstat->type->all->median;
-		if ($allMedian == 0) $allMedian = 0.00001;
-		$price = $allMedian;
-		if ($price == 0 || ($sellMedian / $allMedian) > 2) $price = $sellMedian;
-		if ($price !== null && $price >= 0.01) {
-			Price::storeItemPrice($typeID, $price);
-			return $price;
-		}
-		//if ($useJita == false) return getMarketPrice($typeID, true);
-		return 0;
+		// Market failed - do we have a basePrice in the database?
+		$price = Db::queryField("select basePrice from ccp_invTypes where typeID = :typeID", "basePrice", array(":typeID" => $typeID));
+		return isset($price) ? $price : 0;
 	}
-
-	/**
-	 * Save the price in the database for future reference.
-	 * Price will expire after 7 days.
-	 *
-	 * @static
-	 * @param	$typeID
-	 * @param	$price
-	 * @return void
-	 */
-	protected static function storeItemPrice($typeID, $price)
-	{
-		if ($price == null) return;
-		// 604800 is the number of seconds in 7 days
-
-		//Log::log("Storing $typeID at price $price");
-		Db::execute("replace into zz_prices (typeID, price, expires) values (:typeID, :price, date_add(now(), interval 7 day))",
-								array(
-										 ":price" => $price,
-										 ":typeID" => $typeID,
-								));
-	}
-
 }

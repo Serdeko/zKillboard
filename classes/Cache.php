@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zCache
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -21,7 +20,7 @@
  */
 class Cache
 {
-	function Cache()
+	public function __construct()
 	{
 		trigger_error('The class "cache" may only be invoked statically.', E_USER_ERROR);
 	}
@@ -31,34 +30,47 @@ class Cache
 	 */
 	protected static function getCache()
 	{
-		global $cache, $memcacheServer, $memcachePort;
+		global $cache, $memcacheServer, $memcachePort, $redisServer;
 
 		if ($cache == null)
 		{
-			if(extension_loaded("apcu"))
-			{
-				$cache = new ApcCache();
-			}
-			else if(extension_loaded("Memcached"))
+			if(extension_loaded("Memcached") && (!empty($memcacheServer)))
 			{
 				$cache = new MemcachedCache();
 			}
-			else if(extension_loaded("Memcache"))
+			elseif(extension_loaded("Memcache") && (!empty($memcacheServer)))
 			{
 				$cache = new MemcacheCache();
+			}
+			elseif(extension_loaded("redis") && !empty($redisServer))
+			{
+				$cache = new RedisCache();
+			}
+			elseif(extension_loaded("apcu") || extension_loaded("apc"))
+			{
+				$cache = new ApcCache();
 			}
 			else
 			{
 				$cache = new FileCache();
 			}
 		}
-
 		return $cache;
 	}
 
 	/**
+	 * Get the type of cache used
+	 *
+	 * @return string
+	 */
+	public static function getClass()
+	{
+		return get_class(self::getCache());
+	}
+
+	/**
 	 * Sets data to the cache
-	 * 
+	 *
 	 * @param $key
 	 * @param $value
 	 * @param $timeout
@@ -66,31 +78,31 @@ class Cache
 	 */
 	public static function set($key, $value, $timeout = '3600')
 	{
-		$cache = Cache::getCache();
+		$cache = self::getCache();
 		return $cache->set($key, $value, $timeout);
 	}
 
 	/**
 	 * Gets data from the cache
-	 * 
+	 *
 	 * @param $key
 	 * @return array
 	 */
 	public static function get($key)
 	{
-		$cache = Cache::getCache();
+		$cache = self::getCache();
 		return $cache->get($key);
 	}
 
 	/**
 	 * Deletes data from the cache
-	 * 
-	 * @param $key
+	 *
+	 * @param string $key
 	 * @return bool
 	 */
 	public static function delete($key)
 	{
-		$cache = Cache::getCache();
+		$cache = self::getCache();
 		return $cache->delete($key);
 	}
 
@@ -104,20 +116,20 @@ class Cache
 	 */
 	public static function replace($key, $value, $timeout = '3600')
 	{
-		$cache = Cache::getCache();
+		$cache = self::getCache();
 		return $cache->replace($key, $value, $timeout);
 	}
 
 	/**
 	 * Increment a value
-	 * 
+	 *
 	 * @param $key
 	 * @param $timeout (This only works for Memcached, file cache flat out ignores it)
 	 * @return new value on success, else false
 	 */
 	public static function increment($key, $timeout = 3600)
 	{
-		$cache = Cache::getCache();
+		$cache = self::getCache();
 		return $cache->increment($key, 1, $timeout);
 	}
 
@@ -130,10 +142,10 @@ class Cache
 	 */
 	public static function decrement($key, $timeout = 3600)
 	{
-		$cache = Cache::getCache();
+		$cache = self::getCache();
 		return $cache->decrement($key, 1, $timeout);
 	}
-	
+
 	/**
 	 * Flush the Cache
 	 *
@@ -141,7 +153,7 @@ class Cache
 	 */
 	public static function flush()
 	{
-		$cache = Cache::getCache();
+		$cache = self::getCache();
 		return $cache->flush();
 	}
 }

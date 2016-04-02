@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -47,7 +47,7 @@ $ip = IP::get();
 
 try {
 	Db::execute("INSERT INTO zz_errors (id, error, message, url, ip) VALUES (:id, :error, :message, :url, :ip) ON DUPLICATE KEY UPDATE ip = :ip, date = :date", array(":id" => $codeHash, ":error" => $html, ":message" => $message, ":url" => $url, ":ip" => $ip, ":date" => $date));
-	$app->render("error.html", array("code" => $codeHash, "errorMessage" => $message, "error" => $html));
+	$app->render("error.html", array("code" => $codeHash, "message" => $message, "error" => $html));
 } catch (Exception $ex) {
     $html = "<html>";
     $html .= "<head>";

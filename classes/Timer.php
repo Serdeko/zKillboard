@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zLibrary
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -19,7 +18,9 @@
 class Timer
 {
 	/**
-	 * @var The microtime when start() was executed.
+	 * The microtime when start() was executed.
+	 *
+	 * @param string The microtime when start() was executed.
 	 */
 	protected $startTime;
 

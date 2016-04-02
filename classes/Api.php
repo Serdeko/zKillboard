@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -26,8 +26,8 @@ class Api
 	 * Checks a key for validity and KillLog access.
 	 *
 	 * @static
-	 * @param $keyID The keyID to be checked.
-	 * @param $vCode The vCode to be checked
+	 * @param $keyID int The keyID to be checked.
+	 * @param $vCode string The vCode to be checked
 	 * @return string A message, Success on success, otherwise an error.
 	 */
 	public static function checkAPI($keyID, $vCode)
@@ -41,8 +41,7 @@ class Api
 			return "Invalid keyID.  Did you get the keyID and vCode mixed up?";
 		}
 
-		$pheal = Util::getPheal();
-		$pheal = new Pheal($keyID, $vCode);
+		$pheal = Util::getPheal($keyID, $vCode);
 		try
 		{
 			$result = $pheal->accountScope->APIKeyInfo();
@@ -56,25 +55,21 @@ class Api
 
 		$key = $result->key;
 		$accessMask = $key->accessMask;
-		$keyType = $key->type;
 		$hasBits = self::hasBits($accessMask);
 
 		if (!$hasBits) {
 			return "Error, key does not have access to killlog, please modify key to add killlog access";
 		}
-		if ($hasBits) {
-			return "success";
-		}
-
+		return "success";
 	}
 
 	/**
 	 * Adds a key to the database.
 	 *
 	 * @static
-	 * @param $keyID
-	 * @param $vCode
-	 * @param null $label
+	 * @param int $keyID
+	 * @param string $vCode
+	 * @param null|string $label
 	 * @return string
 	 */
 	public static function addKey($keyID, $vCode, $label = null)
@@ -94,20 +89,16 @@ class Api
 			return "keyID $keyID is already in the database...";
 		}
 
-		$pheal = Util::getPheal();
-		$pheal = new Pheal($keyID, $vCode);
+		$pheal = Util::getPheal($keyID, $vCode);
 		$result = $pheal->accountScope->APIKeyInfo();
 		$key = $result->key;
 		$keyType = $key->type;
 
 		if ($keyType == "Account") $keyType = "Character";
 
-		if (isset($_SERVER["HTTP_CF_CONNECTING_IP"])) $ip = $_SERVER["HTTP_CF_CONNECTING_IP"];
-		elseif (isset($_SERVER["HTTP_X_FORWARDED_FOR"])) $ip = $_SERVER["HTTP_X_FORWARDED_FOR"];
-		else $ip = $_SERVER['REMOTE_ADDR'];
+		$ip = IP::get();
 
-
-		Log::ircAdmin("API: $keyID has been added.  Type: $keyType ($ip)");
+		Log::log("API: $keyID has been added.  Type: $keyType ($ip)");
 		return "Success, your $keyType key has been added.";
 	}
 
@@ -115,7 +106,7 @@ class Api
 	 * Deletes a key owned by the currently logged in user.
 	 *
 	 * @static
-	 * @param $keyID
+	 * @param $keyID int
 	 * @return string
 	 */
 	public static function deleteKey($keyID)
@@ -130,20 +121,24 @@ class Api
 	 * Returns a list of keys owned by the currently logged in user.
 	 *
 	 * @static
-	 * @return Returns
+	 * @param $userID int
+	 * @return array Returns
 	 */
 	public static function getKeys($userID)
 	{
-		$userID = user::getUserID();
+		if(!isset($userID))
+			$userID = user::getUserID();
+
 		$result = Db::query("SELECT keyID, vCode, label, lastValidation, errorCode FROM zz_api WHERE userID = :userID order by keyID", array(":userID" => $userID), 0);
 		return $result;
 	}
 
 	/**
-	 * Returns an array of charactery keys.
+	 * Returns an array of character keys.
 	 *
 	 * @static
-	 * @return Returns
+	 * @param $userID int
+	 * @return array Returns
 	 */
 	public static function getCharacterKeys($userID)
 	{
@@ -155,6 +150,7 @@ class Api
 	 * Returns an array of the characters assigned to this user.
 	 *
 	 * @static
+	 * @param $userID int
 	 * @return array
 	 */
 	public static function getCharacters($userID)
@@ -168,7 +164,7 @@ class Api
 	 * Tests the access mask for KillLog access
 	 *
 	 * @static
-	 * @param $accessMask
+	 * @param int $accessMask
 	 * @return bool
 	 */
 	public static function hasBits($accessMask)
@@ -178,11 +174,11 @@ class Api
 
 	/**
 	 * API exception handling
-	 * 
+	 *
 	 * @static
-	 * @param $keyID
-	 * @param $charID
-	 * @param $exception
+	 * @param integer $keyID
+	 * @param int $charID
+	 * @param Exception $exception
 	 * @return void
 	 */
 	public static function handleApiException($keyID, $charID, $exception)
@@ -196,58 +192,64 @@ class Api
 		$demoteCharacter = false;
 		$cacheUntil = 0;
 		switch ($code) {
-			case 904:
-				$msg = "Error 904 detected using key $keyID";
-				Log::log($msg);
-				$msg = "|r|$msg";
-	//			Log::irc($msg);
-	//			Log::admin($msg);
-				break;
+			case 28: // Timeouts
+			case 904: // temp ban from ccp's api server
+				Db::execute("replace into zz_storage values ('ApiStop904', date_add(now(), interval 5 minute))");
+			break;
+
 			case 403:
 			case 502:
 			case 503: // Service Unavailable - try again later
 				$cacheUntil = time() + 300;
 				$updateCacheTime = true;
-				break;
+			break;
+
 			case 119: // Kills exhausted: retry after [{0}]
 				$cacheUntil = $exception->cached_until;
 				$updateCacheTime = true;
-				break;
+			break;
+
 			case 120: // Expected beforeKillID [{0}] but supplied [{1}]: kills previously loaded.
 				$cacheUntil = $exception->cached_until;
 				$updateCacheTime = true;
-				break;
+			break;
+
 			case 221: // Demote toon, illegal page access
 				$clearAllCharacters = true;
 				$clearApiEntry = true;
-				break;
+			break;
+
 			case 220:
 			case 200: // Current security level not high enough.
 				// Typically happens when a key isn't a full API Key
 				$clearAllCharacters = true;
 				$clearApiEntry = true;
 				//$code = 203; // Force it to go away, no point in keeping this key
-				break;
+			break;
+
 			case 522:
 			case 201: // Character does not belong to account.
 				// Typically caused by a character transfer
 				$clearCharacter = true;
-				break;
+			break;
 			case 207: // Not available for NPC corporations.
 			case 209:
 				$demoteCharacter = true;
-				break;
-			case 222: // account has expired
-			$clearAllCharacters = true;
-			$clearApiEntry = true;
-			$cacheUntil = time() + (7 * 24 * 3600); // Try again in a week
 			break;
+
+			case 222: // account has expired
+				$clearAllCharacters = true;
+				$clearApiEntry = true;
+				$cacheUntil = time() + (7 * 24 * 3600); // Try again in a week
+			break;
+
 			case 403:
 			case 211: // Login denied by account status
 				// Remove characters, will revalidate with next doPopulate
 				$clearAllCharacters = true;
 				$clearApiEntry = true;
-				break;
+			break;
+
 			case 202: // API key authentication failure.
 			case 203: // Authentication failure - API is no good and will never be good again
 			case 204: // Authentication failure.
@@ -256,20 +258,23 @@ class Api
 			case 521: // Invalid username and/or password passed to UserData.LoginWebUser().
 				$clearAllCharacters = true;
 				$clearApiEntry = true;
-				break;
+			break;
+
 			case 500: // Internal Server Error (More CCP Issues)
 			case 520: // Unexpected failure accessing database. (More CCP issues)
 			case 404: // URL Not Found (CCP having issues...)
 			case 902: // Eve backend database temporarily disabled
 				$updateCacheTime = true;
 				$cacheUntil = time() + 3600; // Try again in an hour...
-				break;
+			break;
+
 			case 0: // API Date could not be read / parsed, original exception (Something is wrong with the XML and it couldn't be parsed)
 			default: // try again in 5 minutes
 				Log::log("$keyID - Unhandled error - Code $code - $message");
 				//$updateCacheTime = true;
 				$clearApiEntry = true;
 				//$cacheUntil = time() + 300;
+			break;
 		}
 
 		if ($demoteCharacter && $charID != 0) {
@@ -301,37 +306,22 @@ class Api
 	{
 		global $baseDir;
 
-		$fetchesPerSecond = 30;
-		$timer = new Timer();
-		$preFetched = array();
+		Db::execute("delete from zz_api_characters where isDirector = ''"); // Minor cleanup
+		$fetchesPerSecond = (int) Storage::retrieve("APIFetchesPerSecond", 30);
+		$maxModulus = Db::queryField("select max(modulus) maxModulus from zz_api_characters", "maxModulus", array(), 0);
+		// If the fetchesPerSecond has changed we need to update the modulus on all rows to make sure everyone gets a turn
+		if (($maxModulus + 1) != $fetchesPerSecond)
+		{
+			Log::log("Updating modulus in zz_api_characters table...");
+			Db::execute("update zz_api_characters set modulus = null");
+		}
+		Db::execute("update zz_api_characters set modulus = (apiRowID % :modulus) where modulus is null", array(":modulus" => $fetchesPerSecond));
 
-		$maxTime = 60 * 1000;
-		while ($timer->stop() < $maxTime) {
-			Db::execute("delete from zz_api_characters where isDirector = ''");
-
-			$allChars = Db::query("select apiRowID, cachedUntil from zz_api_characters where errorCode != 120 and cachedUntil < date_sub(now(), interval 30 second) order by cachedUntil, keyID, characterID limit 1000", array(), 0);
-
-			$total = sizeof($allChars);
-			$corpsToSkip = array();
-			$iterationCount = 0;
-
-			if ($total == 0) sleep(1);
-			else foreach ($allChars as $char) {
-				if ($timer->stop() > $maxTime) return;
-
-				$apiRowID = $char["apiRowID"];
-				$cachedUntil = $char["cachedUntil"];
-
-				Db::execute("update zz_api_characters set cachedUntil = date_add(if(cachedUntil=0, now(), cachedUntil), interval 5 minute), lastChecked = now() where apiRowID = :id", array(":id" => $apiRowID));
-
-				$m = $iterationCount % $fetchesPerSecond;
-				$command = "flock -w 60 $baseDir/cache/locks/preFetch.$m zkillboard apiFetchKillLog $apiRowID";
-				$command = escapeshellcmd($command);
-				exec("$command >/dev/null 2>/dev/null &");
-
-				$iterationCount++;
-				if ($m == 0) { sleep(1); }
-			}
+		for ($i = 0; $i < $fetchesPerSecond; $i++)
+		{
+			$command = "flock -w 60 $baseDir/cache/locks/preFetch.$i php5 $baseDir/cli.php apiFetchKillLog $i $fetchesPerSecond";
+			$command = escapeshellcmd($command);
+			exec("$command >/dev/null 2>/dev/null &");
 		}
 	}
 
@@ -353,30 +343,28 @@ class Api
 		Log::irc("|g|$actualDifference|n| mails processed | |g|$totalDifference|n| kills added");
 	}
 
+	/**
+	 * @param string $keyID string
+	 * @param $charID int
+	 * @param $killlog string
+	 * @return int
+	 */
 	public static function processRawApi($keyID, $charID, $killlog)
 	{
 		$count = 0;
-		$maxKillID = Db::queryField("select maxKillID from zz_api_characters where keyID = :keyID and characterID = :charID", "maxKillID",
-				array(":keyID" => $keyID, ":charID" => $charID), 0);
-		if ($maxKillID === null) $maxKillID = 0;
-		$insertedMaxKillID = $maxKillID;
 		foreach ($killlog->kills as $kill) {
 			$killID = $kill->killID;
-			//if ($killID < $maxKillID) continue;
-			$insertedMaxKillID = max($insertedMaxKillID, $killID);
 
 			$json = json_encode($kill->toArray());
 			$hash = Util::getKillHash(null, $kill);
-			$mKillID = Db::queryField("select killID from zz_killmails where killID < 0 and processed = 1 and hash = :hash", "killID", array(":hash" => $hash), 0);
-			if ($mKillID) Kills::cleanDupe($mKillID, $killID);
-			$added = Db::execute("insert ignore into zz_killmails (killID, hash, source, kill_json) values (:killID, :hash, :source, :json)",
-					array(":killID" => $killID, ":hash" => $hash, ":source" => "keyID:$keyID", ":json" => $json));
-			$count += $added;
-		}
-		if ($maxKillID != $insertedMaxKillID) {
-			Db::execute("insert into zz_api_characters (keyID, characterID, maxKillID) values (:keyID, :charID, :maxKillID)
-					on duplicate key update maxKillID = :maxKillID",
-					array(":keyID" => $keyID, ":charID" => $charID, "maxKillID" => $insertedMaxKillID));
+
+			$inDb = Db::queryField("select count(1) count from zz_killmails where killID = :killID", "count", array(":killID" => $killID), 0);
+			if ($inDb == 0)
+			{
+				$added = Db::execute("insert ignore into zz_killmails (killID, hash, source, kill_json) values (:killID, :hash, :source, :json)",
+						array(":killID" => $killID, ":hash" => $hash, ":source" => "keyID:$keyID", ":json" => $json));
+				$count += $added;
+			}
 		}
 		return $count;
 	}

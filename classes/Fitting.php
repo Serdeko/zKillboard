@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -94,16 +94,28 @@ class Fitting
 		return trim($eft);
 	}
 
-  public static function DNA($array,$ship){
-    $goodspots = array("High Slots","Rigs","Low Slots","Mid Slots","Drone Bay");
-    $fit="";
-    $fit.= $ship.":";
-    foreach($array as $item){
-      if (isset($item["flagName"]) && in_array($item["flagName"] ,$goodspots)){
-        $fit .= $item["typeID"].";".($item["qtyDropped"] + $item["qtyDestroyed"]).":";
-      }
-    }
-    $fit .= ":";
-    return $fit;
-  }
+	public static function DNA($array = array(), $ship)
+	{
+		$goodspots = array("High Slots", "SubSystems", "Rigs", "Low Slots", "Mid Slots", "Drone Bay", "Fuel Bay");
+		$fitArray = array();
+		$fitString = $ship.":";
+
+		foreach($array as $item)
+		{
+			if (isset($item["flagName"]) && in_array($item["flagName"], $goodspots))
+			{
+				if(isset($fitArray[$item["typeID"]]))
+					$fitArray[$item["typeID"]]["count"] = $fitArray[$item["typeID"]]["count"] + ($item["qtyDropped"] + $item["qtyDestroyed"]);
+				else
+					$fitArray[$item["typeID"]] = array("count" => ($item["qtyDropped"] + $item["qtyDestroyed"]));
+			}
+		}
+
+		foreach($fitArray as $key => $item)
+		{
+			$fitString .= "$key;".$item["count"].":";
+		}
+		$fitString .= ":";
+		return $fitString;
+	}
 }

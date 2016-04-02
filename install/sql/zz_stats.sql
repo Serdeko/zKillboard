@@ -1,4 +1,3 @@
-
 DROP TABLE IF EXISTS `zz_stats`;
 CREATE TABLE `zz_stats` (
   `type` varchar(16) NOT NULL,
@@ -13,6 +12,6 @@ CREATE TABLE `zz_stats` (
   UNIQUE KEY `type` (`type`,`typeID`,`groupID`),
   KEY `typeID_2` (`typeID`),
   KEY `groupID` (`groupID`),
-  KEY `typeID` (`typeID`,`groupID`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED;
-
+  KEY `typeID` (`typeID`,`groupID`),
+  KEY `type_2` (`type`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED TRANSACTIONAL=0;

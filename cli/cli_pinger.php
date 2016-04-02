@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,11 +28,11 @@ class cli_pinger implements cliCommand
 		return ""; // Space seperated list
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
 		try
 		{
-			Db::query("select now()", array(), 0);
+			$db->query("select now()", array(), 0);
 		} catch (Exception $ex)
 		{
 			Log::irc("|r|Unable to connect to the database: " . $ex->getMessage());

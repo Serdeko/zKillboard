@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -22,13 +22,13 @@ class cli_list implements cliCommand
 	{
 		return "Lists all the commands available via the CLI interface. Usage: |g|list";
 	}
-	
+
 	public function getAvailMethods()
 	{
 		return " "; // Space seperated list
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
 		$commands = array();
 		$dir = __DIR__;
@@ -37,7 +37,7 @@ class cli_list implements cliCommand
 		{
 			while(false !== ($entry = readdir($handle)))
 			{
-				if($entry != "." && $entry != ".." && $entry != "base.php" && $entry != "cli_methods.php")
+				if($entry != "." && $entry != ".." && $entry != "base.txt" && $entry != "cli_methods.php")
 				{
 					$s1 = explode("cli_", $entry);
 					$s2 = explode(".php", $s1[1]);

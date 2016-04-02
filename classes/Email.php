@@ -1,6 +1,5 @@
 ﻿<?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zLibrary
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,16 +17,25 @@
 
 class Email
 {
+
+	/**
+	 * @param string $email
+	 * @param string $subject
+	 * @param string $body
+	 * @return string
+	 */
 	public static function send($email, $subject, $body)
 	{
-		global $emailsmtp, $emailusername, $emailpassword, $sentfromemail, $sentfromdomain, $baseDir;
+		if($email == "null@null.com")
+			return "Mail address is null@null.com - which isn't a real address, please fix it so we can send mails to you!";
+
+		global $emailsmtp, $emailport, $emailusername, $emailpassword, $sentfromemail, $sentfromdomain, $baseDir;
 		$mail = new PHPMailer();
 		$mail->isSMTP();
 		$mail->SMTPDebug = 0;
 		$mail->SMTPAuth = true;
-		$mail->SMTPSecure = "ssl";
 		$mail->Host = $emailsmtp;
-		$mail->Port = "465";
+		$mail->Port = $emailport;
 		$mail->Username = $emailusername;
 		$mail->Password = $emailpassword;
 		$mail->SetFrom($sentfromemail, $sentfromdomain);
@@ -37,9 +45,7 @@ class Email
 		if (!$mail->Send()) {
 			Log::log("Error sending email to $email: " . $mail->ErrorInfo);
 			echo "Mail error: " . $mail->ErrorInfo;
-		}
-		else
-		{
+		} else {
 			Log::log("Email sent to $email with subject '$subject'");
 			return "Success";
 		}

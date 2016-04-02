@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,17 +28,17 @@ class cli_fixGroupIDs implements cliCommand
 		return ""; // Space seperated list
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
 		// Fix unknown group ID's
-		$result = Db::query("select distinct killID from zz_participants where groupID != vGroupID and isVictim = 1 limit 1", array(), 0);
+		$result = $db->query("select distinct killID from zz_participants where groupID != vGroupID and isVictim = 1 limit 1", array(), 0);
 		foreach ($result as $row) {
 			$killID = $row["killID"];
-			$shipTypeID = Db::queryField("select shipTypeID from zz_participants where killID = $killID and isVictim = 1", "shipTypeID");
+			$shipTypeID = $db->queryField("select shipTypeID from zz_participants where killID = $killID and isVictim = 1", "shipTypeID");
 			if ($shipTypeID == 0) continue;
 			$groupID = Info::getGroupID($shipTypeID);
 			echo "Updating $killID to $groupID\n";
-			Db::execute("update zz_participants set vGroupID = $groupID where killID = $killID");
+			$db->execute("update zz_participants set vGroupID = $groupID where killID = $killID");
 		}
 		CLI::out(sizeof($result) . " done!", true);
 	}

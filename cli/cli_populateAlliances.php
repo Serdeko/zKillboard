@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -35,14 +35,16 @@ class cli_populateAlliances implements cliCommand
 		);
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
-		self::populateAlliances();
+		self::populateAlliances($db);
 	}
 
-	private static function populateAlliances()
+	private static function populateAlliances($db)
 	{
-		CLI::out("Repopulating the alliance table");
+		if (Util::isMaintenanceMode()) return;
+		if (Util::is904Error()) return;
+		//CLI::out("Repopulating the alliance table");
 		Log::log("Repopulating alliance tables.");
 		$allianceCount = 0;
 		$corporationCount = 0;
@@ -57,8 +59,8 @@ class cli_populateAlliances implements cliCommand
 			$exception = $ex;
 		}
 		if ($list != null && sizeof($list->alliances) > 0) {
-			Db::execute("update zz_alliances set memberCount = 0");
-			Db::execute("update zz_corporations set allianceID = 0");
+			$db->execute("UPDATE zz_alliances SET memberCount = 0 WHERE memberCount > 0");
+			$db->execute("UPDATE zz_corporations SET allianceID = 0 WHERE allianceID != 0");
 			foreach ($list->alliances as $alliance) {
 				$allianceCount++;
 				$allianceID = $alliance['allianceID'];
@@ -68,24 +70,24 @@ class cli_populateAlliances implements cliCommand
 				$memberCount = $alliance['memberCount'];
 				$parameters = array(":alliID" => $allianceID, ":shortName" => $shortName, ":name" => $name,
 						":execID" => $executorCorpID, ":memberCount" => $memberCount);
-				Db::execute("insert into zz_alliances (allianceID, ticker, name, executorCorpID, memberCount, lastUpdated) values
+				$db->execute("insert into zz_alliances (allianceID, ticker, name, executorCorpID, memberCount, lastUpdated) values
 						(:alliID, :shortName, :name, :execID, :memberCount, now())
 						on duplicate key update memberCount = :memberCount, ticker = :shortName, name = :name,
 						executorCorpID = :execID, lastUpdated = now()", $parameters);
 				$corporationCount += sizeof($alliance->memberCorporations);
 				foreach($alliance->memberCorporations as $corp) {
 					$corpID = $corp->corporationID;
-					Db::execute("update zz_corporations set allianceID = :alliID where corporationID = :corpID",
+					$db->execute("update zz_corporations set allianceID = :alliID where corporationID = :corpID",
 							array(":alliID" => $allianceID, ":corpID" => $corpID));
 				}
 			}
 
 			$allianceCount = number_format($allianceCount, 0);
 			$corporationCount = number_format($corporationCount, 0);
-			CLI::out("Alliance tables repopulated - $allianceCount active Alliances with a total of $corporationCount Corporations");
+			//CLI::out("Alliance tables repopulated - $allianceCount active Alliances with a total of $corporationCount Corporations");
 			Log::log("Alliance tables repopulated - $allianceCount active Alliances with a total of $corporationCount Corporations");
 		} else {
-			CLI::out("Unable to pull Alliance XML from API.  Will try again later.");
+			//CLI::out("Unable to pull Alliance XML from API.  Will try again later.");
 			Log::log("Unable to pull Alliance XML from API.  Will try again later.");
 			if ($exception != null) throw $exception;
 			throw new Exception("Unable to pull Alliance XML from API.  Will try again later");

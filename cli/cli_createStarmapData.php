@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,82 +18,126 @@
 
 class cli_createStarmapData implements cliCommand
 {
-	public function getDescription()
-	{
-		return "Creates the assests needed for the starmap. Types available: |g|ships, systems, all|n|. Usage: |g|createStarmapData <type>";
-	}
+    /**
+     * The zKillboard base path
+     * @var string
+     */
+    private $base;
 
-	public function getAvailMethods()
-	{
-		return "ships systems all"; // Space seperated list
-	}
-	
-	public function execute($parameters)
-	{
-		switch(@$parameters[0])
-		{
-			case "ships":
-				ships();
-			break;
+    /**
+     * The zKillboard base path
+     * @var string
+     */
+    private $meta_names = array('tech1', 'tech1', 'tech1', 'tech1', 'tech1', 'tech2', 'storyline', 'navy', 'faction', 'unique');
 
-			case "systems":
-				systems();
-			break;
+    /**
+     * Return the help / description for this command
+     * @return string
+     */
+    public function getDescription() {
+        return 'Creates the assests needed for the starmap. Types available: |g|ships, systems, all|n|. Usage: |g|createStarmapData <type>';
+    }
 
-			case "all":
-				ships();
-				systems();
-			break;
+    /**
+     * Returns a list of the available methods available
+     * @return string
+     */
+    public function getAvailMethods() {
+        return 'ships systems all';
+    }
 
-			default:
-				CLI::out("Please use |g|ships, systems or all|n| with this command", true);
-			break;
-		}		
-	}
-}
+    /**
+     * Runs the command with the passed methods
+     * @param  array $parameters The paramater passed to the command
+     * @return void
+     */
+    public function execute($parameters, $db) {
+        global $base;
 
-function systems()
-{
-	global $base;
-	$bold = array("Freighter", "Carrier", "Dreadnought", "Capital Industrial Ship", "Jump Freighter", "Supercarrier", "Titan");
-	CLI::out("Loading systems");
-	$systems_result = Db::query("SELECT solarSystemID, solarSystemName, security, x, y, z FROM ccp_systems");
-	$systems = array();
-	foreach($systems_result as $system)
-	{
-		$systems[$system['solarSystemID']] = array(
-			'name' => $system['solarSystemName'],
-			'sec' => (($system['security'] < 0) ? 0 : (round($system['security'] , 1) * 10)),
-			'x' => $system['x'],
-			'y' => $system['y'],
-			'z' => ($system['z'] * -1)
-		);
-	}
-	CLI::out("Creating system JSON data");
-	$json = json_encode($systems, JSON_NUMERIC_CHECK);
-	CLI::out("Unlinking old file");
-	@unlink("$base/public/js/starmap-systems.json");
-	CLI::out("Creating new system JSON file");
-	file_put_contents("$base/public/js/starmap-systems.json", $json);
-	CLI::out("Done");
-}
+        //set the base path (this really should be injected)
+        $this->base = $base;
 
-function ships()
-{
-	global $base;
-	$bold = array("Freighter", "Carrier", "Dreadnought", "Capital Industrial Ship", "Jump Freighter", "Supercarrier", "Titan");
-	CLI::out("Loading ships");
-	$ships_results = Db::query("SELECT ccp_invTypes.typeID, typeName, groupName FROM ccp_invTypes INNER JOIN ccp_invGroups ON ccp_invGroups.groupID = ccp_invTypes.groupID WHERE (categoryID IN (6, 23, 40) AND ccp_invTypes.published = 1 AND ccp_invGroups.published = 1 OR typeID = 670)");
-	$ships = array();
-	foreach($ships_results as $ship)
-	{
-		$ships[$ship['typeID']] = array('name' => $ship['typeName'], 'bold' => ((in_array($ship['groupName'], $bold)) ? 1 : 0));
-	}
-	CLI::out("Creating ship JSON data");
-	$json = json_encode($ships, JSON_NUMERIC_CHECK);
-	CLI::out("Unlinking old file");
-	@unlink("$base/public/js/starmap-ships.json");
-	CLI::out("Creating new ship JSON file");
-	file_put_contents("$base/public/js/starmap-ships.json", $json);
-	CLI::out("Done");
+        //execute the desired method
+        if (is_array($parameters)) {
+            switch(@$parameters[0]) {
+                case 'ships':
+                    $this->generateShipDataFile($db);
+                break;
+
+                case 'systems':
+                    $this->generateSystemDataFile($db);
+                break;
+
+                case 'all':
+                    $this->generateShipDataFile($db);
+                    $this->generateSystemDataFile($db);
+                break;
+
+                default:
+                    CLI::out('Please use |g|ships, systems or all|n| with this command', true);
+                break;
+            }
+        }
+    }
+
+    /**
+     * Creates the JSON file for the map or the known universe
+     * @param string $file_name
+     * @return void
+     */
+    public function writeStaticData($file_name, $data_array) {
+        global $theme;
+        $file_name = $this->base . '/themes/'. $theme .'/js/' . $file_name . '.json';
+
+        CLI::out('Creating JSON string');
+        $json = json_encode($data_array, JSON_NUMERIC_CHECK);
+
+        if (file_exists($file_name)) {
+            CLI::out('Unlinking old file');
+            unlink($file_name);
+        }
+
+        CLI::out('Writing new file');
+        file_put_contents($file_name, $json);
+
+        CLI::out('Done');
+    }
+
+    /**
+     * Creates a json file of systems to be used on the star map page
+     * @return void
+     */
+    public function generateSystemDataFile($db) {
+        CLI::out('|g|Loading ships|n|');
+
+        //get a list of all non-wormhole systems
+        $systems_result = $db->query('SELECT solarSystemID, solarSystemName, security, x, y, z FROM ccp_systems WHERE regionID < 11000000');
+        $systems = array();
+
+        foreach($systems_result as $system) {
+            $systems[$system['solarSystemID']] = array('name' => $system['solarSystemName'], 'sec' => (($system['security'] < 0) ? 0 : (round($system['security'] , 1) * 10)), 'x' => $system['x'], 'y' => $system['y'], 'z' => ($system['z'] * -1));
+        }
+
+        //create the new file asset
+        $this->writeStaticData('starmap-systems', $systems);
+    }
+
+    /**
+     * Creates a json file of ships to be used on the star map page
+     * @return [type] [description]
+     */
+    public function generateShipDataFile($db) {
+        CLI::out('|g|Loading ships|n|');
+
+        //get a list of all the published ships
+        $ships_results = $db->query('SELECT ccp_invTypes.typeID, typeName, groupName, COALESCE(valueInt, valueFloat) AS metaLevel FROM ccp_invTypes INNER JOIN ccp_invGroups ON ccp_invGroups.groupID = ccp_invTypes.groupID INNER JOIN ccp_dgmTypeAttributes ON ccp_dgmTypeAttributes.typeID = ccp_invTypes.typeID AND ccp_dgmTypeAttributes.attributeID = 633 WHERE (categoryID IN (6, 23, 40) AND ccp_invTypes.published = 1 AND ccp_invGroups.published = 1 OR ccp_invTypes.groupID = 29)');
+        $ships = array();
+
+        foreach($ships_results as $ship) {
+            $ships[$ship['typeID']] = array('name' => $ship['typeName'], 'group' => strtolower(str_replace(' ', '-', $ship['groupName'])), 'meta' => $this->meta_names[$ship['metaLevel']]);
+        }
+
+        //create the new file asset
+        $this->writeStaticData('starmap-ships', $ships);
+    }
 }

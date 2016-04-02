@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zCache
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -27,7 +26,7 @@ class MemcachedCache extends AbstractCache
 	{
 		global $memcacheServer, $memcachePort;
 
-		$this->mc = new Memcached();
+		$this->mc = new Memcached("zKB");
 		if(substr($memcacheServer, 0, 7) == "unix://")
 			$this->mc->addServer(substr($memcacheServer, 7), 0);
 		else
@@ -39,16 +38,25 @@ class MemcachedCache extends AbstractCache
 		return $this->mc->get($key);
 	}
 
+	/**
+	 * @param string $timeout
+	 */
 	public function set($key, $value, $timeout)
 	{
 		return $this->mc->set($key, $value, $timeout);
 	}
 
+	/**
+	 * @param string $timeout
+	 */
 	public function replace($key, $value, $timeout)
 	{
 		return $this->mc->replace($key, $value, $timeout);
 	}
 
+	/**
+	 * @param string $key
+	 */
 	public function delete($key)
 	{
 		return $this->mc->delete($key);
@@ -56,12 +64,12 @@ class MemcachedCache extends AbstractCache
 
 	public function increment($key, $step = 1, $timeout = 0)
 	{
-		return $this->mc->increment($key, $step, $step, $timeout);
+		return $this->mc->increment($key, $step);
 	}
 
 	public function decrement($key, $step = 1, $timeout = 0)
 	{
-		return $this->mc->decrement($key, $step, -$step, $timeout);
+		return $this->mc->decrement($key, -$step);
 	}
 
 	public function flush()

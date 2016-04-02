@@ -1,8 +1,0 @@
-{% set actualSize = (resizeImage is defined) ? resizeImage : imageSize %}
-{% if field.characterID == 0 %}
-	<img src="{{ image_character }}1_{{imageSize}}.jpg" height="{{actualSize}}" width="{{actualSize}}" class="eveimage img-rounded"/>
-{% else %}
-<a href="/character/{{ field.characterID }}/" rel="tooltip" title="{{ field.characterName }}">
-	<img src="{{ image_character }}{{ field.characterID }}_{{imageSize}}.jpg" height="{{actualSize}}" width="{{actualSize}}" class="eveimage img-rounded" alt="{{ field.characterName }}"/>
-</a>
-{% endif %}

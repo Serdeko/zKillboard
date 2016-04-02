@@ -31,7 +31,6 @@ class Parser
 	 * @param $userID - the ID of the user who posted the raw mail
 	 * @return array
 	 */
-
 	public static function parseRaw($rawMail, $userID)
 	{
 		$errors = array();
@@ -50,19 +49,34 @@ class Parser
 			$mail = str_ireplace("Alliance: Federation Navy", "Faction: Gallente Federation", $mail);
 		}
 
+		// Fix an error that has happened a few times, where Involved parties: and Name: are on the same line
+		if(stristr($mail, "Involved parties:Name:"))
+			$mail = str_replace("Involved parties:Name:", "Involved parties:\n\nName:", $mail);
+
 		// Fix unicode and random CCP localization problems.
 		$mail = utf8_decode($mail);
 		$mail = preg_replace('/: (\d+),00/', ': $1', $mail);
 		$mail = preg_replace('/(\d),(\d)/', '$1.$2', $mail);
 		$mail = str_replace('?', '-', $mail);
 
+		// Remove (Other) - because CCP fails at life.. Refer to https://github.com/EVE-KILL/zKillboard/issues/174
+		$mail = str_replace(" (Other)", "", $mail);
+
+		// Find the timestamp
 		$timestamp = substr($mail, 0, 16);
 		$timestamp = str_replace(".", "-", $timestamp);
 		$timestamp .= ":00";
 
-		// Make sure there is a time stamp
+		// Make sure there is a timestamp
 		if (!$timestamp)
 			$errors[] = "No timestamp, probably not even a killmail";
+
+		// Validate timestamp
+		$time = DateTime::createFromFormat("Y-m-d H:i:s", $timestamp);
+		if($time != false)
+			$timestamp = $time->format("Y-m-d H:i:s");
+		else
+			$errors[] = "Error with the timestamp..";
 
 		// Make sure there is an involved party
 		if (stripos($mail, "Involved parties:") === false)
@@ -80,17 +94,17 @@ class Parser
 			"killTime" => $timestamp,
 			"moonID" => 0,
 			"victim" => array(
-					"shipTypeID" => 0,
-					"damageTaken" => 0,
-					"factionName" => "",
-					"factionID" => 0,
-					"allianceName" => "",
-					"allianceID" => 0,
-					"corporationName" => "",
-					"corporationID" => 0,
-					"characterName" => "",
-					"characterID" => 0,
-				),
+				"shipTypeID" => 0,
+				"damageTaken" => 0,
+				"factionName" => "",
+				"factionID" => 0,
+				"allianceName" => "",
+				"allianceID" => 0,
+				"corporationName" => "",
+				"corporationID" => 0,
+				"characterName" => "",
+				"characterID" => 0,
+			),
 			"attackers" => array(),
 			"items" => array()
 		);
@@ -119,15 +133,15 @@ class Parser
 			switch($key) {
 				case "Victim:":
 					$killMail["victim"]["characterName"] = (string) $value;
-					$killMail["victim"]["characterID"] = (int) Info::getCharID($value, true);
+					$killMail["victim"]["characterID"] = (int) Info::getCharID($value);
 				break;
 				case "Corp:":
 					if ($inVictim) {
 						$killMail["victim"]["corporationName"] = (string) $value;
-						$killMail["victim"]["corporationID"] = (int) Info::getCorpID($value, true);
+						$killMail["victim"]["corporationID"] = (int) Info::getCorpID($value);
 					} else if ($inAttackers) {
 						$currentAttacker["corporationName"] = (string) $value;
-						$currentAttacker["corporationID"] = (int) Info::getCorpID($value, true);
+						$currentAttacker["corporationID"] = (int) Info::getCorpID($value);
 					}
 				break;
 				case "Alliance:":
@@ -182,27 +196,14 @@ class Parser
 						else $errors[] = "Invalid Moon: $value";
 					}
 				break;
-				case "Security:":
-					if ($inAttackers) $currentAttacker["securityStatus"] = (float) $value;
-				break;
-				case "Ship:":
-					if ($inAttackers) $currentAttacker["shipTypeID"] = (int) Info::getItemID($value);
-				break;
-				case "Weapon:":
-					if ($inAttackers) $currentAttacker["weaponTypeID"] = (int) Info::getItemID($value);
-				break;
-				case "Damage Done:":
-					if ($inAttackers) $currentAttacker["damageDone"] = (int) $value;
-				break;
 				case "Name:":
-					if ($currentAttacker != null) $killMail["attackers"][] = $currentAttacker;
-					$currentAttacker = self::createAttacker();
+					if($inAttackers) $currentAttacker = self::createAttacker();
 					if (stripos($value, "(laid the final blow)") !== false) {
 						$currentAttacker["finalBlow"] = 1;
 						$value = trim(str_ireplace("(laid the final blow)", "", $value));
 					}
 					$id = 0;
-					if ($value != "" && strpos($value, "/") === false) $id = (int) Info::getCharID($value, true);
+					if ($value != "" && strpos($value, "/") === false) $id = (int) Info::getCharID($value);
 					if ($id != 0) {
 						$currentAttacker["characterName"] = (string) $value;
 						$currentAttacker["characterID"] = $id;
@@ -214,10 +215,9 @@ class Parser
 						$id = (int) Db::queryField("select typeID from ccp_invTypes where typeName = :name", "typeID", 
 								array(":name" => $npc));
 						$currentAttacker["weaponTypeID"] = $id;
-						//$currentAttacker["characterName"] = (string) $npc;
 						if (sizeof($npcSplit) > 1 && trim($npcSplit[1]) != "Unknown") {
 							// Look up the corp
-							$corpID = Info::getCorpID(trim($npcSplit[1]), true);
+							$corpID = Info::getCorpID(trim($npcSplit[1]));
 							if ($corpID > 0) {
 								$currentAttacker["corporationID"] = $corpID;
 								$currentAttacker["corporationName"] = trim($npcSplit[1]);
@@ -227,6 +227,20 @@ class Parser
 						}
 					}
 				break;
+				case "Security:":
+					if ($inAttackers) $currentAttacker["securityStatus"] = (float) $value;
+				break;
+				case "Ship:":
+					if ($inAttackers) $currentAttacker["shipTypeID"] = (int) Info::getItemID($value);
+				break;
+				case "Weapon:":
+					if ($inAttackers) $currentAttacker["weaponTypeID"] = (int) Info::getItemID($value);
+				break;
+				case "Damage Done:":
+					if ($inAttackers) $currentAttacker["damageDone"] = (int) $value;
+					if ($currentAttacker != null) $killMail["attackers"][] = $currentAttacker;
+				break;
+
                 case "Involved parties:":
                     $inVictim = false;
                     $inAttackers = true;
@@ -254,13 +268,20 @@ class Parser
 					$value = $line;
 					$flag = null;
 					$qty = 1;
-					$flags = array("(Cargo)" => 5, "(Drone Bay)" => 87, "(Implant)" => 89);
-					foreach($flags as $flagType=>$flagID) {
+
+					// ADD ALL THE FLAGS!!!!!!!!!!!
+					$dbFlags = Db::query("SELECT flagText, flagID FROM ccp_invFlags", array(), 3600);
+					$flags = array();
+					foreach($dbFlags as $f)
+						$flags["(".$f["flagText"].")"] = (int) $f["flagID"];
+
+					foreach($flags as $flagType => $flagID) {
 						if (strpos($value, $flagType) !== false) {
 							$flag = $flagID;
 							$value = trim(str_replace($flagType, "", $value));
-						} 
+						}
 					}
+
 					$isBlueprintCopy = false;
 					$bpc = "(Copy)";
 					if (Util::endsWith($value, $bpc)) {
@@ -279,36 +300,42 @@ class Parser
 						$value = $qtyEx[0] . str_replace("$qty", "", $qtyEx[1]);
 					}
 					$typeID = Info::getItemID($value);
-					if ($typeID == 0) {$errors[] = "Unknown Item: $value"; continue;}
+					if ($typeID == 0) { 
+						$errors[] = "Unknown Item: $value"; 
+						continue;
+					}
 					if ($flag === null) {
 						// Ok, we need to figure out which slot this is in...
-						$flagSlot = Db::queryField("select e.effectID effectID from ccp_invTypes i left join ccp_dgmTypeEffects d on (d.typeID = i.typeID) left join ccp_dgmEffects e on (d.effectID = e.effectID) where i.typeID = :typeID", "effectID", array(":typeID" => $typeID));
-						switch($flagSlot) {
-							case 11:
-								$flag = $currentLowSlot;
-								$currentLowSlot++;
-							break;
-							case 12:
-								$flag = $currentHighSlot;
-								$currentHighSlot++;
-							break;
-							case 13:
-								$flag = $currentMidSlot;
-								$currentMidSlot++;
-							break;
-							case 2663:
-								$flag = $currentRigSlot;
-								$currentRigSlot++;
-							break;
-							case 3772:
-								$flag = $currentSubSlot;
-								$currentSubSlot++;
-							break;
-							default: $flag = 0;
+						$flagSlot = Db::query("select e.effectID effectID from ccp_invTypes i left join ccp_dgmTypeEffects d on (d.typeID = i.typeID) left join ccp_dgmEffects e on (d.effectID = e.effectID) where i.typeID = :typeID", array(":typeID" => $typeID));
+						foreach($flagSlot as $f)
+						{
+							$flagSlot = $f["effectID"];
+							switch($flagSlot) {
+								case 11:
+									$flag = $currentLowSlot;
+									$currentLowSlot++;
+								break;
+								case 12:
+									$flag = $currentHighSlot;
+									$currentHighSlot++;
+								break;
+								case 13:
+									$flag = $currentMidSlot;
+									$currentMidSlot++;
+								break;
+								case 2663:
+									$flag = $currentRigSlot;
+									$currentRigSlot++;
+								break;
+								case 3772:
+									$flag = $currentSubSlot;
+									$currentSubSlot++;
+								break;
+							}
 						}
 					}
 
-					if ($flag == null) $flag = 5;
+					if ($flag == null || $flag == 0) $flag = 5;
 					$item = self::createItem();
 					$item["typeID"] = $typeID;
 					$item["flag"] = $flag;
@@ -324,53 +351,51 @@ class Parser
 					$killValue += ($qty * Price::getItemPrice($typeID));
 			}
 		}
-		if ($currentAttacker != null) $killMail["attackers"][] = $currentAttacker;
 
 		// Check that stuff is actually sane, and not some made up shit..
 		// Victim must have a valid characterID and corporationID
-
 		if ($killMail["victim"]["shipTypeID"] == 0) $errors[] = "Invalid destroyed ship.";
 		else 
 		{
 			$victimGroupID = Info::getGroupID($killMail["victim"]["shipTypeID"]);
 			$noCharGroups = array(
-					311, // Refining Arrays
-					363, // [Capital] Ship Maintenance Array
-					365, // POS's
-					397, // Assembly Arrays
-					404, // Silos
-					413, // Mobile POS Labs
-					416, // Moon Harvester
-					413, // Mobile POS Labs
-					417, // Missile and Torpedo Batteries
-					426, // Artillery Batteries
-					430, // Laser Batteries
-					438, // Reactor Arrays
-					439, // ECM Batteries
-					440, // Dampening Arrays
-					441, // Web Batteries
-					443, // Warp scrambling arrays
-					444, // POS damage arrays (ballistic, explosion, heat, photon)
-					449, // Blaster & Railgun Batteries
-					471, // Corporation Hangar Array, ShipYard
-					473, // Tracking Array
-					707, // Jump Bridges
-					709, // Scanning Arrays
-					837, // Neut Batteries
-					838, // Cynosural Generator Array    
-					839, // Cynosural System Jammer      
-					1003, // Territorial Claim Unit       
-					1003, // QA Territorial Claim Unit    
-					1005, // Sovereignty Blockade Unit    
-					1005, // QA Sovereignty Blockade Unit 
-					1012, // QA Infrastructure Hub        
-					1012, // Infrastructure Hub           
-					1025, // Customs Office               
-					1025, // Orbital Command Center       
-					1025, // Interbus Customs Office      
-					1106, // Customs Office Gantry        
-					1012, // IHUBS
-					);
+				311, // Refining Arrays
+				363, // [Capital] Ship Maintenance Array
+				365, // POS's
+				397, // Assembly Arrays
+				404, // Silos
+				413, // Mobile POS Labs
+				416, // Moon Harvester
+				413, // Mobile POS Labs
+				417, // Missile and Torpedo Batteries
+				426, // Artillery Batteries
+				430, // Laser Batteries
+				438, // Reactor Arrays
+				439, // ECM Batteries
+				440, // Dampening Arrays
+				441, // Web Batteries
+				443, // Warp scrambling arrays
+				444, // POS damage arrays (ballistic, explosion, heat, photon)
+				449, // Blaster & Railgun Batteries
+				471, // Corporation Hangar Array, ShipYard
+				473, // Tracking Array
+				707, // Jump Bridges
+				709, // Scanning Arrays
+				837, // Neut Batteries
+				838, // Cynosural Generator Array
+				839, // Cynosural System Jammer
+				1003, // Territorial Claim Unit
+				1003, // QA Territorial Claim Unit
+				1005, // Sovereignty Blockade Unit
+				1005, // QA Sovereignty Blockade Unit
+				1012, // QA Infrastructure Hub
+				1012, // Infrastructure Hub
+				1025, // Customs Office
+				1025, // Orbital Command Center
+				1025, // Interbus Customs Office
+				1106, // Customs Office Gantry
+				1012, // IHUBS
+			);
 
 			// Allow POS's, POS modules, ihub's and poco's, TCU, SBU
 			if (in_array($victimGroupID, $noCharGroups))  {  } // noop() - do nothing
@@ -387,10 +412,11 @@ class Parser
 		if ($killMail["victim"]["factionName"] != "" && strcasecmp($killMail["victim"]["factionName"], "None") != 0 && $killMail["victim"]["factionID"] == 0)
 			$errors[] = "Invalid victim faction: " . $killMail["victim"]["factionName"];
 
-		if (Bin::get("BreakOnInvalidDamage", true) && $killMail["victim"]["damageTaken"] == 0) $errors[] = "Invalid damage amount.";
+		if (Bin::get("BreakOnInvalidDamage", true) && $killMail["victim"]["damageTaken"] == 0)
+			$errors[] = "Invalid damage amount.";
 
-
-		if ($killMail["solarSystemID"] == 0) $errors[] = "Invalid solar system.";
+		if ($killMail["solarSystemID"] == 0)
+			$errors[] = "Invalid solar system.";
 
 		// Verified the victim, lets forget the rest to see if there's a dupe!
         $stdMail = json_decode(json_encode($killMail), false);
@@ -430,6 +456,7 @@ class Parser
 		$victimGroupID = Info::getGroupID($killMail["victim"]["shipTypeID"]);
 		// Ships with specialized bays
 		$bayShips = array(
+			28, // Industrials
 			30, // Titans
 			659, // Supercarriers
 			485, // Dreads
@@ -441,13 +468,7 @@ class Parser
 			941, // Industrial Command Ships
 			883, // Captial Industiral Ships
 		);
-		if (in_array($victimGroupID, $bayShips)) $errors[] = "The victim ship has bays which are not displayed on manual killmails, please use API to post the kill";
-		$specialIterons = array(
-			32811, // Iteron Mark IV Amastris Edition
-			4363, // Iteron Mark IV Quafe Ultra Edition
-			4388, // Iteron Mark IV Quafe Ultramarine Edition
-		);
-		if (in_array($killMail["victim"]["shipTypeID"], $specialIterons)) $errors[] = "The victim ship has bays which are not displayed on manual killmails, please use API to post the kill";
+		if (in_array($victimGroupID, $bayShips)) $errors[] = "The victim ship has bays which are not displayed properly on manual killmails, please use API to post the kill";
 
 		// We're done with sanity checks, if we have any errors return them
 		if (sizeof($errors)) {
@@ -455,7 +476,7 @@ class Parser
 		}
 
 		// Insert ignore allows us to "pretend" to insert dupes
-		Db::execute("insert ignore into zz_manual_mails (hash, rawText) values (:hash, :rawText)", array(":hash" => $hash, ":rawText" => $rawMail));
+		Db::execute("insert ignore into zz_manual_mails (hash) values (:hash)", array(":hash" => $hash));
 		// Look up the manualKillID from the hash (good for those dupe inserts)
 		$mKillID = Db::queryField("select mKillID from zz_manual_mails where hash = :hash order by mKillID desc limit 1", "mKillID", array(":hash" => $hash), 0);
 
@@ -496,7 +517,7 @@ class Parser
 
 	/**
 	 * Initiates the attacker array
-	 * @return array
+	 * @return string
 	 */
 	private static function createAttacker() {
 		return array(
@@ -518,15 +539,15 @@ class Parser
 
 	/**
 	 * Translates a killmail
-	 * @param $mail the killmail that needs translation
+	 * @param string $mail the killmail that needs translation
 	 * @return text
 	 */
 	private static function Translate($mail)
 	{
 		// German!
-		if (strpos($mail, "Beteiligte Parteien:")) {
+		if (strpos($mail, "Beteiligte Parteien:"))
+		{
 			$mail = str_replace(array(chr(195) . chr(182), chr(195) . chr(164)), array(chr(246), chr(228)), $mail);
-
 			$translation = array(
 					'Opfer:' => 'Victim:',
 					'Ziel:' => 'Victim:',
@@ -554,6 +575,7 @@ class Parser
 					': Unbekannt' => ': None',
 					'(Dronenhangar)' => '(Drone Bay)',
 					'(Drohnenhangar)' => '(Drone Bay)',
+					'(Drohnenbucht)' => '(Drone Bay)',
 					'Mond:' => 'Moon:',
 					'Kapsel' => 'Capsule',
 					'Menge:' => 'Qty:'
@@ -565,7 +587,8 @@ class Parser
 		}
 
 		// Russian!
-		if (strpos($mail, "Корпорация") || strpos($mail, "Неизвестно")) {
+		if (strpos($mail, "Корпорация") || strpos($mail, "Неизвестно"))
+		{
 			$translation = array(
 					'Жертва:' => 'Victim:',
 					'Альянс: НЕТ' => 'Alliance: None',
@@ -602,264 +625,47 @@ class Parser
 					'Отсек дронов' => 'Drone Bay',
 					'Луна:' => 'Moon:',
 
-					);
-
+				);
 			foreach ($translation as $w => $t) {
 				$mail = str_ireplace($w, $t, $mail);
 			}
 		}
 
+		// Chinese
+		if (strpos($mail, "军团") || strpos($mail, "受害者")) {
+			// Just incase that weird : is standard on all chinese mails
+			$mail = str_replace("：", ":", $mail);
+
+			$translation = array(
+					'受害者:' => 'Victim:',
+					'联盟:' => 'Alliance:',
+					'名称:' => 'Name:',
+					'势力:' => 'Faction:',
+					'被摧毁物:' => 'Destroyed:',
+					'安全等级:' => 'Security:',
+					'星系:' => 'System:',
+					'参与者:' => 'Involved parties:',
+					'军团:' => 'Corp:',
+					'舰船:' => 'Ship:',
+					'武器:' => 'Weapon:',
+					'造成损伤:' => 'Damage Done:',
+					'所受损伤:' => 'Damage Taken:',
+					'(给予最后一击)' => '(laid the final blow)',
+					'Сброшенные предметы:' => 'Dropped items:',
+					'кол-во:' => 'Qty:',
+					'Неизвестно' => 'None',
+					'Отсек дронов' => 'Drone Bay',
+					'Луна:' => 'Moon:',
+					'(Груз)' => '(Cargo)',
+					'(植入体)' => '(Implant)',
+					'кол-во:' => 'Qty:',
+					'(В контейнере)' => '(In Container)',
+					'被毁物品:' => 'Destroyed items:',
+				);
+			foreach ($translation as $w => $t) {
+				$mail = str_ireplace($w, $t, $mail);
+			}
+		}
 		return $mail;
-	}
-
-	public static function parseKills()
-	{
-		if (Util::isMaintenanceMode()) return;
-
-		$timer = new Timer();
-
-		$maxTime = 65 * 1000 ;
-
-		Db::execute("create table if not exists zz_items_temporary select * from zz_items where 1 = 0");
-		Db::execute("create table if not exists zz_participants_temporary select * from zz_participants where 1 = 0");
-
-		$numKills = 0;
-
-		while ($timer->stop() < $maxTime) {
-			if (Util::isMaintenanceMode()) {
-				self::removeTempTables();
-				return;
-			}
-			Db::execute("delete from zz_items_temporary");
-			Db::execute("delete from zz_participants_temporary");
-
-			//Log::log("Fetching kills for processing...");
-			$result = Db::query("select * from zz_killmails where processed = 0 order by killID desc limit 100", array(), 0);
-
-			if (sizeof($result) == 0) {
-				$currentSecond = (int) date("s");
-				$sleepTime = max(1, 15 - ($currentSecond % 15));
-				sleep($sleepTime);
-				continue;
-			}
-
-			//Log::log("Processing fetched kills...");
-			$processedKills = array();
-			$cleanupKills = array();
-			foreach ($result as $row) {
-				$numKills++;
-				$kill = json_decode($row['kill_json']);
-				if (!isset($kill->killID)) {
-					Log::log("Problem with kill " . $row["killID"]);
-					Db::execute("update zz_killmails set processed = 2 where killid = :killid", array(":killid" => $row["killID"]));
-					continue;
-				}
-				$killID = $kill->killID;
-
-				$date = $kill->killTime;
-
-				$date = strtotime($date);
-				$year = date("Y", $date);
-				$month = date("m", $date);
-				$week = date("W", $date);
-				if ($week >= 52 && $month == 1) $year -= 1;
-				if (strlen($week) < 2) $week = "0$week";
-
-				// Cleanup if we're reparsing
-				$cleanupKills[] = $killID;
-
-				// Do some validation on the kill
-				if (!self::validKill($kill)) {
-					Db::execute("update zz_killmails set processed = 3 where killid = :killid", array(":killid" => $row["killID"]));
-					//self::processVictim($year, $month, $week, $kill, $killID, $kill->victim, true);
-					continue;
-				}
-
-				$totalCost = 0;
-				$itemInsertOrder = 0;
-
-				$totalCost += self::processItems($year, $week, $kill, $killID, $kill->items, $itemInsertOrder);
-				$totalCost += self::processVictim($year, $month, $week, $kill, $killID, $kill->victim, false);
-				foreach ($kill->attackers as $attacker) self::processAttacker($year, $month, $week, $kill, $killID, $attacker, $kill->victim->shipTypeID, $totalCost);
-				$points = Points::calculatePoints($killID, true);
-				Db::execute("update zz_participants_temporary set points = :points, number_involved = :numI, total_price = :tp where killID = :killID", array(":killID" => $killID, ":points" => $points, ":numI" => sizeof($kill->attackers), ":tp" => $totalCost));
-
-				$processedKills[] = $killID;
-			}
-			while (Db::queryField("show session status like 'Not_flushed_delayed_rows'", "Value", array(), 0) > 0) usleep(50000);
-			if (sizeof($cleanupKills)) {
-				Db::execute("delete from zz_items where killID in (" . implode(",", $cleanupKills) . ")");
-				Db::execute("delete from zz_participants where killID in (" . implode(",", $cleanupKills) . ")");
-			}
-			Db::execute("insert into zz_items select * from zz_items_temporary");
-			Db::execute("insert into zz_participants select * from zz_participants_temporary");
-			if (sizeof($processedKills)) Db::execute("update zz_killmails set processed = 1 where killID in (" . implode(",", $processedKills) . ")");
-			foreach($processedKills as $killID) {
-				Stats::calcStats($killID, true);
-			}
-		}
-		if ($numKills > 0)
-		{
-			Log::log("Processed $numKills kills");
-		}
-		self::removeTempTables();
-	}
-
-	private static function removeTempTables()
-	{
-		//Db::execute("drop table if exists zz_participants_temporary");
-		//Db::execute("drop table if exists zz_items_temporary");
-	}
-
-	private static function validKill(&$kill)
-	{
-		$killID = $kill->killID;
-		$victimCorp = $kill->victim->corporationID < 1000999 ? 0 : $kill->victim->corporationID;
-		$victimAlli = $kill->victim->allianceID;
-
-		$npcOnly = true;
-		$blueOnBlue = true;
-		foreach ($kill->attackers as $attacker) {
-			$attackerGroupID = Info::getGroupID($attacker->shipTypeID);
-			if ($attackerGroupID == 365) return true; // A tower is involved
-
-			// Don't process the kill if it's NPC only
-			$npcOnly &= $attacker->characterID == 0 && $attacker->corporationID < 1999999;
-
-			// Check for blue on blue
-			if ($attacker->characterID != 0) $blueOnBlue &= $victimCorp == $attacker->corporationID && $victimAlli == $attacker->allianceID;
-		}
-		if ($npcOnly /*|| $blueOnBlue*/) return false;
-
-		return true;
-	}
-
-	private static function processVictim(&$year, &$month, &$week, &$kill, $killID, &$victim, $isNpcVictim)
-	{
-		$shipPrice = Price::getItemPrice($victim->shipTypeID);
-		$groupID = Info::getGroupID($victim->shipTypeID);
-		$regionID = Info::getRegionIDFromSystemID($kill->solarSystemID);
-
-		$dttm = (string) $kill->killTime;
-
-		if (!$isNpcVictim) Db::execute("
-				insert into zz_participants_temporary
-				(killID, solarSystemID, regionID, isVictim, shipTypeID, groupID, shipPrice, damage, factionID, allianceID,
-				 corporationID, characterID, dttm, vGroupID)
-				values
-				(:killID, :solarSystemID, :regionID, 1, :shipTypeID, :groupID, :shipPrice, :damageTaken, :factionID, :allianceID,
-				 :corporationID, :characterID, :dttm, :vGroupID)",
-				(array(
-					   ":killID" => $killID,
-					   ":solarSystemID" => $kill->solarSystemID,
-					   ":regionID" => $regionID,
-					   ":shipTypeID" => $victim->shipTypeID,
-					   ":groupID" => $groupID,
-					   ":vGroupID" => $groupID,
-					   ":shipPrice" => $shipPrice,
-					   ":damageTaken" => $victim->damageTaken,
-					   ":factionID" => $victim->factionID,
-					   ":allianceID" => $victim->allianceID,
-					   ":corporationID" => $victim->corporationID,
-					   ":characterID" => $victim->characterID,
-					   ":dttm" => $dttm,
-					  )));
-
-		Info::addChar($victim->characterID, $victim->characterName);
-		Info::addCorp($victim->corporationID, $victim->corporationName);
-		Info::addAlli($victim->allianceID, $victim->allianceName);
-
-		return $shipPrice;
-	}
-
-	private static function processAttacker(&$year, &$month, &$week, &$kill, &$killID, &$attacker, $victimShipTypeID, $totalCost)
-	{
-		$victimGroupID = Info::getGroupID($victimShipTypeID);
-		$attackerGroupID = Info::getGroupID($attacker->shipTypeID);
-		$regionID = Info::getRegionIDFromSystemID($kill->solarSystemID);
-
-		$dttm = (string) $kill->killTime;
-
-		Db::execute("
-				insert into zz_participants_temporary
-				(killID, solarSystemID, regionID, isVictim, characterID, corporationID, allianceID, total_price, vGroupID,
-				 factionID, damage, finalBlow, weaponTypeID, shipTypeID, groupID, dttm)
-				values
-				(:killID, :solarSystemID, :regionID, 0, :characterID, :corporationID, :allianceID, :total, :vGroupID,
-				 :factionID, :damageDone, :finalBlow, :weaponTypeID, :shipTypeID, :groupID, :dttm)",
-				(array(
-					   ":killID" => $killID,
-					   ":solarSystemID" => $kill->solarSystemID,
-					   ":regionID" => $regionID,
-					   ":characterID" => $attacker->characterID,
-					   ":corporationID" => $attacker->corporationID,
-					   ":allianceID" => $attacker->allianceID,
-					   ":factionID" => $attacker->factionID,
-					   ":damageDone" => $attacker->damageDone,
-					   ":finalBlow" => $attacker->finalBlow,
-					   ":weaponTypeID" => $attacker->weaponTypeID,
-					   ":shipTypeID" => $attacker->shipTypeID,
-					   ":groupID" => $attackerGroupID,
-					   ":dttm" => $dttm,
-					   ":total" => $totalCost,
-					   ":vGroupID" => $victimGroupID,
-					  )));
-		Info::addChar($attacker->characterID, $attacker->characterName);
-		Info::addCorp($attacker->corporationID, $attacker->corporationName);
-		Info::addAlli($attacker->allianceID, $attacker->allianceName);
-	}
-
-	private static function processItems(&$year, &$week, &$kill, &$killID, &$items, &$itemInsertOrder, $isCargo = false, $parentFlag = 0)
-	{
-		$totalCost = 0;
-		foreach ($items as $item) {
-			$totalCost += self::processItem($year, $week, $kill, $killID, $item, $itemInsertOrder++, $isCargo, $parentFlag);
-			if (@is_array($item->items)) {
-				$itemContainerFlag = $item->flag;
-				$totalCost += self::processItems($year, $week, $kill, $killID, $item->items, $itemInsertOrder, true, $itemContainerFlag);
-			}
-		}
-		return $totalCost;
-	}
-
-	private static function processItem(&$year, &$week, &$kill, &$killID, &$item, $itemInsertOrder, $isCargo = false, $parentContainerFlag = -1)
-	{
-		global $itemNames;
-		if ($itemNames == null ) {
-			$itemNames = array();
-			$results = Db::query("select typeID, typeName from ccp_invTypes", array(), 3600);
-			foreach ($results as $row) {
-				$itemNames[$row["typeID"]] = $row["typeName"];
-			}
-		}
-		$typeID = $item->typeID;
-		$itemName = $itemNames[$item->typeID];
-
-		$price = Price::getItemPrice($typeID);
-		if ($isCargo && strpos($itemName, "Blueprint") !== false) $item->singleton = 2;
-		if ($item->singleton == 2) {
-			$price = $price / 100;
-		}
-
-		Db::execute("
-				insert into zz_items_temporary
-				(killID, typeID, flag, qtyDropped, qtyDestroyed, insertOrder, price, singleton, year, week, inContainer)
-				values
-				(:killID, :typeID, :flag, :qtyDropped, :qtyDestroyed, :insertOrder, :price, :singleton, :year, :week, :inContainer)",
-				(array(
-					   ":killID" => $killID,
-					   ":typeID" => $item->typeID,
-					   ":flag" => ($isCargo ? $parentContainerFlag : $item->flag),
-					   ":qtyDropped" => $item->qtyDropped,
-					   ":qtyDestroyed" => $item->qtyDestroyed,
-					   ":insertOrder" => $itemInsertOrder,
-					   ":price" => $price,
-					   ":singleton" => $item->singleton,
-					   ":year" => $year,
-					   ":week" => $week,
-					   ":inContainer" => ($isCargo ? 1 : 0),
-					  )));
-
-		return ($price * ($item->qtyDropped + $item->qtyDestroyed));
 	}
 }

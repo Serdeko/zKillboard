@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,14 +28,13 @@ class cli_dupeFixer implements cliCommand
 		return ""; // Space seperated list
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
-		$cleaned = array();
-		$result = Db::query("select b.hash, a.killID from zz_killmails a left join (select hash, count(*) as count from zz_killmails where processed = 1 group by 1 having count(*) >= 2) as b on (a.hash = b.hash) where b.hash is not null and a.killID < 0", array(), 0);
+		$result = $db->query("select b.hash, a.killID from zz_killmails a left join (select hash, count(*) as count from zz_killmails where processed = 1 group by 1 having count(*) >= 2) as b on (a.hash = b.hash) where b.hash is not null and a.killID < 0", array(), 0);
 		foreach ($result as $row) {
 			$hash = $row["hash"];
 			$mKillID = $row["killID"];
-			$killID = Db::queryField("select killID from zz_killmails where hash = :hash and killID > 0 limit 1", "killID", array(":hash" => $hash), 0);
+			$killID = $db->queryField("select killID from zz_killmails where hash = :hash and killID > 0 limit 1", "killID", array(":hash" => $hash), 0);
 			Kills::cleanDupe($mKillID, $killID);
 		}
 		Log::log("Cleaned up " . sizeof($result) . " dupes");

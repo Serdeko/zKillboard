@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zLibrary
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,6 +17,9 @@
 
 class IP
 {
+	/**
+	 * @return string
+	 */
 	public static function get()
 	{
 		if (isset($_SERVER["HTTP_CF_CONNECTING_IP"])) $ip = $_SERVER["HTTP_CF_CONNECTING_IP"];

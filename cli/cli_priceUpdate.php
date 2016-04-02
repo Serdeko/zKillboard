@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -20,7 +20,7 @@ class cli_priceUpdate implements cliCommand
 {
 	public function getDescription()
 	{
-		return "Updates the price for ships and modules. |g|Usage: priceUpdate";
+		return "Updates the price data directly from eve-kill";
 	}
 
 	public function getAvailMethods()
@@ -30,66 +30,35 @@ class cli_priceUpdate implements cliCommand
 
 	public function getCronInfo()
 	{
-		return array(
-			86400 => ""
-		);
+		return array(43200 => ""); // Run twice a day
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
-		Db::execute("truncate zz_prices");
+		// This should really be user defined in the config, but whatever, this works for now
+		$date = date("Y-m-d");
+		$url = "https://beta.eve-kill.net/api/market/date/{$date}/";
+		$data = json_decode(Util::getData($url), true);
 
-		$motherships = Db::query("select typeid from ccp_invTypes where groupid = 659");
-		foreach ($motherships as $mothership) {
-			$typeID = $mothership['typeid'];
-			Db::execute("replace into zz_prices (typeID, price) values (:typeID, 25000000000)", array(":typeID" => $typeID));
-		}
+		foreach($data as $item)
+		{
+			$typeID = $item["typeID"];
+			$priceDate = $item["priceDate"];
+			$avgPrice = $item["avgPrice"];
+			$lowPrice = $item["lowPrice"];
+			$highPrice = $item["highPrice"];
 
-		$titans = Db::query("select typeid from ccp_invTypes where groupid = 30");
-		foreach ($titans as $titan) {
-			$typeID = $titan['typeid'];
-			Db::execute("replace into zz_prices (typeID, price) values (:typeID, 70000000000)", array(":typeID" => $typeID));
-		}
+			// Check typeID is in database
+			$exists = Db::queryField("SELECT typeID FROM ccp_invTypes WHERE typeID = :typeID", "typeID", array(":typeID" => $typeID), 0);
 
-		$tourneyFrigates = array(
-			2834, // Utu
-			11375, // Freki
-			32788, // Cambion
-		);
-		foreach($tourneyFrigates as $typeID) Db::execute("replace into zz_prices (typeID, price) values ($typeID, 25000000000)"); // 25b
-
-		$tourneyCruisers = array(
-			2836, // Adrestia
-			3516, // Malice
-			3518, // Vangel
-			32209, //Mimir
-		);
-		foreach($tourneyCruisers as $typeID) Db::execute("replace into zz_prices (typeID, price) values ($typeID, 40000000000)"); // 40b
-
-		$rareCruisers = array( // Ships we should never see get blown up!
-			11940, // Gold Magnate
-			11942, // Silver Magnate
-			635, // Opux Luxury Yacht
-			110111, // Guardian-Vexor
-			25560, // Opux Dragoon Yacht
-		);
-		foreach($rareCruisers as $typeID) Db::execute("replace into zz_prices (typeID, price) values ($typeID, 55000000000)"); // 55b
-
-		$rareBattleships = array( // More ships we should never see get blown up!
-			13202, // Megathron Federate Issue
-			26840, // Raven State Issue
-			11936, // Apocalypse Imperial Issue
-			11938, // Armageddon Imperial Issue
-			26842, // Tempest Tribal Issue
-		);
-		foreach($rareBattleships as $typeID) Db::execute("replace into zz_prices (typeID, price) values ($typeID, 750000000000)"); // 750b
-
-		$prices = file_get_contents("http://eve.no-ip.de/prices/30d/prices-all.xml");
-		$xml = new SimpleXmlElement($prices);
-		foreach($xml->result->rowset->row as $row) {
-			$typeID = $row['typeID'];
-			$avgPrice = $row['avg'];
-			Db::execute("replace into zz_prices (typeID, price) values (:typeID, :price)", array(":typeID" => $typeID, ":price" => $avgPrice));
+			if($exists == $typeID)
+			{
+				Db::execute("INSERT IGNORE INTO zz_item_price_lookup (typeID, priceDate, avgPrice, lowPrice, highPrice) VALUES (:typeID, :priceDate, :avgPrice, :lowPrice, :highPrice)", 
+					array(
+						":typeID" => $typeID, ":priceDate" => $priceDate, ":avgPrice" => $avgPrice, ":lowPrice" => $lowPrice, ":highPrice" => $highPrice
+					)
+				);
+			}
 		}
 	}
 }

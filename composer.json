@@ -1,16 +1,20 @@
 {
-    "require": {
-        "slim/slim": "2.2.0",
-        "slim/extras": "*",
-        "twig/twig": "*",
-        "twig/extensions": "*",
-        "pheal/pheal": "*",
-        "phpmailer/phpmailer": "*",
-        "mobiledetect/mobiledetectlib": "*",
-        "realityking/pchart": "*",
-        "dg/twitter-php": "*",
-        "ircmaxell/password-compat": "*",
-        "ccampbell/chromephp": "*"
-    },
-    "minimum-stability": "dev"
+	"require": {
+		"3rdpartyeve/phealng": "1.*",
+		"3rdpartyeve/perry": "1.*",
+		"phpmailer/phpmailer": "*",
+		"mobiledetect/mobiledetectlib": "*",
+		"dg/twitter-php": "*",
+		"ircmaxell/password-compat": "*",
+		"slim/slim": "2.*",
+		"slim/views": "0.1.*",
+		"filp/whoops": "1.*",
+		"zeuxisoo/slim-whoops": "0.2.0",
+		"twig/twig": "1.*",
+		"erusev/parsedown": "dev-master",
+		"domnikl/statsd": "~2.0",
+		"textalk/websocket": "1.0.*"
+	},
+	"minimum-stability": "stable",
+	"prefer-stable": true
 }

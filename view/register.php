@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,11 +18,11 @@
 
 if($_POST)
 {
-    $username = "";
-    $password = "";
-    $password2 = "";
-    $email = "";
-    
+    $username = Util::getPost("username");
+    $password = Util::getPost("password");
+    $password2 = Util::getPost("password2");
+    $email = Util::getPost("email");
+
     if(isset($_POST["username"]))
         $username = $_POST["username"];
     if(isset($_POST["password"]))

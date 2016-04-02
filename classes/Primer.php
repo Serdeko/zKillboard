@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,6 +28,12 @@ class Primer
 		self::storeResult(Db::query("select * from ccp_invTypes", array(), 0), "select typeName from invTypes where typeID = :typeID", ":typeID", "typeID", "typeName");
 	}
 
+	/**
+	 * @param string $query
+	 * @param string $paramName
+	 * @param string $keyColumn
+	 * @param string $valueColumn
+	 */
 	private static function storeResult($result, $query, $paramName, $keyColumn, $valueColumn)
 	{
 	    foreach($result as $rowNum=>$row)

@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -16,21 +16,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-class PhealLogger
+class PhealLogger implements \Pheal\Log\CanLog
 {
 	private $logID = null;
 
-    public function start() {}
+	public function start() {}
 
-    public function stop() {}
+	public function stop() {}
 
-    public function log($scope,$name,$opts) {
-		Db::execute("insert delayed into zz_api_log (scope, name, options) values (:scope, :name, :options)",
+	public function log($scope,$name,$opts) {
+		Db::execute("insert into zz_api_log (scope, name, options) values (:scope, :name, :options)",
 				array(":scope" => $scope, ":name" => $name, ":options" => json_encode($opts)));
 	}
 
-    public function errorLog($scope,$name,$opts,$message) {
-		Db::execute("insert delayed into zz_api_log (scope, name, options, errorCode) values (:scope, :name, :options, :error)",
+	public function errorLog($scope,$name,$opts,$message) {
+		Db::execute("insert into zz_api_log (scope, name, options, errorCode) values (:scope, :name, :options, :error)",
 				array(":scope" => $scope, ":name" => $name, ":options" => json_encode($opts), ":error" => substr($message, 0, 127)));
+		if (Util::startsWith($message, "904:"))
+		{
+			global $debug;
+			Db::execute("replace into zz_storage values ('ApiStop904', date_add(now(), interval 5 minute))");
+			if ($debug) Log::log("Killing API transactions in this thread: $message");
+			die();
+		}
 	}
 }

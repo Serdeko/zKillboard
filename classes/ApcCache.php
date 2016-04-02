@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zCache
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -19,25 +18,34 @@
 /**
  * APC Cache Class
  */
-class APCCache extends AbstractCache
+class ApcCache extends AbstractCache
 {
 	public function get($key)
 	{
-		return apc_fetch($key);
+		return unserialize(apc_fetch($key));
 	}
 
+	/**
+	 * @param string $timeout
+	 */
 	public function set($key, $value, $timeout)
 	{
-		return apc_store($key, $value, $timeout);
+		return apc_store($key, serialize($value), $timeout);
 	}
 
+	/**
+	 * @param string $timeout
+	 */
 	public function replace($key, $value, $timeout)
 	{
 		if(!apc_exists($key))
 			return false;
-		apc_store($key, $value, $timeout);
+		apc_store($key, serialize($value), $timeout);
 	}
 
+	/**
+	 * @param string $key
+	 */
 	public function delete($key)
 	{
 		return apc_delete($key);
@@ -54,10 +62,9 @@ class APCCache extends AbstractCache
 		apc_add($key, 0, $timeout);
 		return apc_dec($key, $step);
 	}
-	
+
 	public function flush()
 	{
 		return apc_clear_cache();
 	}
  }
- 

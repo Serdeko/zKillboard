@@ -1,4 +1,3 @@
-
 DROP TABLE IF EXISTS `zz_api_characters`;
 CREATE TABLE `zz_api_characters` (
   `apiRowID` int(8) NOT NULL AUTO_INCREMENT,
@@ -10,13 +9,15 @@ CREATE TABLE `zz_api_characters` (
   `cachedUntil` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `lastChecked` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   `errorCode` int(6) NOT NULL,
+  `errorCount` int(3) NOT NULL DEFAULT '0',
+  `modulus` int(2) DEFAULT NULL,
   PRIMARY KEY (`apiRowID`),
-  UNIQUE KEY `characterID_2` (`characterID`,`corporationID`,`isDirector`),
   UNIQUE KEY `keyID` (`keyID`,`characterID`),
   KEY `user_id` (`keyID`),
   KEY `characterID` (`characterID`),
   KEY `corporationID` (`corporationID`),
   KEY `isDirector` (`isDirector`),
-  KEY `cachedUntil` (`cachedUntil`)
-) ENGINE=InnoDB AUTO_INCREMENT=61781918 DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED;
-
+  KEY `cachedUntil` (`cachedUntil`),
+  KEY `errorCount` (`errorCount`),
+  KEY `modulus` (`modulus`)
+) ENGINE=InnoDB AUTO_INCREMENT=1387503 DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0;

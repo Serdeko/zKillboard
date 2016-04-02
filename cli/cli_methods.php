@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,7 +28,7 @@ class cli_methods implements cliCommand
 		return ""; // Space seperated list
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
 		if (sizeof($parameters) == 0 || $parameters[0] == "") CLI::out("Usage: |g|methods <command>", true);
 		$command = $parameters[0];
@@ -56,8 +56,8 @@ class cli_methods implements cliCommand
 			{
 				if($entry != "." && $entry != ".." && $entry != "base.php" && $entry != "cli_methods.php")
 				{
-					$s1 = split("cli_", $entry);
-					$s2 = split(".php", $s1[1]);
+					$s1 = explode("cli_", $entry);
+					$s2 = explode(".php", $s1[1]);
 					if(sizeof($s2) == 2)
 					{
 						require_once "$dir/$entry";

@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zLibrary
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -20,6 +19,7 @@ class Storage
 {
 	public static function retrieve($locker, $default = null)
 	{
+		if (!isset($locker) || $locker === null) return $default;
 		$contents = Db::queryField("select contents from zz_storage where locker = :locker", "contents", array(":locker" => $locker), 1);
 		if ($contents === null) return $default;
 		return $contents;

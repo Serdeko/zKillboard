@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -15,13 +15,11 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
+$alltime = false;
+$parameters = array();
 // $time is an array
 if(!isset($time))
-	$time = array();
-
-	$alltime = false;
-
 	$parameters = array("limit" => 10, "kills" => true);
 	switch ($page) {
 		case "monthly":
@@ -43,7 +41,7 @@ if($type == "kills")
 	$topLists[] = array("type" => "corporation", "data" => Stats::getTopCorps($parameters, $alltime));
 	$topLists[] = array("type" => "alliance", "data" => Stats::getTopAllis($parameters, $alltime));
 	$topLists[] = array("type" => "ship", "data" => Stats::getTopShips($parameters, $alltime));
-	$topLists[] = array("type" => "group", "data" => Stats::getTopGroups($parameters, $alltime));
+	$topLists[] = array("type" => "system", "data" => Stats::getTopSystems($parameters, $alltime));
 	$topLists[] = array("type" => "weapon", "data" => Stats::getTopWeapons($parameters, $alltime));
 	$parameters["!factionID"] = 0;
 	$topLists[] = array("name" => "Top Faction Characters", "type" => "character", "data" => Stats::getTopPilots($parameters, $alltime));

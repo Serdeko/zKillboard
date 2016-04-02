@@ -2,99 +2,128 @@
 <?php
 
 if(php_sapi_name() != "cli")
-    die("This is a cli script!");
+	die("This is a cli script!");
 
 if(!extension_loaded('pcntl'))
-    die("This script needs the pcntl extension!");
+	die("This script needs the pcntl extension!");
 
 $base = __DIR__;
-require_once "$base/init.php";
+require_once( "config.php" );
+require_once( "init.php" );
 
 interface cliCommand {
-    public function getDescription();
-    public function getAvailMethods();
-    public function execute($parameters);
+	/**
+	 * @return string
+	 */
+	public function getDescription();
+
+	/**
+	 * @return string
+	 */
+	public function getAvailMethods();
+
+	/**
+	 * @return void
+	 */
+	public function execute($parameters, $db);
 }
 
-$curTime = time();
 $cronInfo = array();
 
 $files = scandir("$base/cli");
 foreach($files as $file)
 {
-    if(!preg_match("/^cli_(.+)\\.php$/", $file, $match))
-        continue;
+	if(!preg_match("/^cli_(.+)\\.php$/", $file, $match))
+		continue;
 
-    $command = $match[1];
-    $className = "cli_$command";
-    require_once "$base/cli/$file";
+	$command = $match[1];
+	$className = "cli_$command";
+	require_once "$base/cli/$file";
 
-    if(!is_subclass_of($className, "cliCommand"))
-        continue;
+	if(!is_subclass_of($className, "cliCommand"))
+		continue;
 
-    if(!method_exists($className, "getCronInfo"))
-        continue;
+	if(!method_exists($className, "getCronInfo"))
+		continue;
 
-    $class = new $className();
-    $cronInfo[$command] = $class->getCronInfo();
-    unset($class);
+	$class = new $className();
+	$cronInfo[$command] = $class->getCronInfo();
+	if(method_exists($className, "executable"))
+		$cronInfo[$command]["executable"] = $class->executable();
+
+	unset($class);
 }
 
 if(file_exists("$base/cron.overrides"))
 {
-    $overrides = file_get_contents("$base/cron.overrides");
-    $overrides = json_decode($overrides, true);
+	$overrides = file_get_contents("$base/cron.overrides");
+	$overrides = json_decode($overrides, true);
 
-    foreach($overrides as $command => $info)
-        $cronInfo[$command] = $info;
+	foreach($overrides as $command => $info)
+	{
+		foreach($info as $f)
+			if($f != "disabled")
+				$cronInfo[$command] = $info;
+			else
+				unset($cronInfo[$command]);
+	}
 }
 
 foreach($cronInfo as $command => $info)
 {
-    foreach($info as $interval => $arguments)
-    {
-        runCron($command, $interval, $arguments);
-    }
+	if(isset($info["executable"]))
+	{
+		$executable = $info["executable"];
+		unset($info["executable"]);
+	}
+	else
+		$executable = "php";
+
+	foreach($info as $interval => $arguments)
+		runCron($command, $interval, $arguments, $executable);
 }
 
-function runCron($command, $interval, $args)
+function runCron($command, $interval, $args, $executable)
 {
-    global $base, $curTime;
+	global $base;
 
-    if(is_array($args))
-        array_unshift($args, $command);
-    else if($args != "")
-        $args = explode(" ", "$command $args");
-    else
-        $args = array($command);
+	$curTime = time();
 
-    $cronName = implode(".", $args);
-    $locker = "lastCronRun.$cronName";
-    $lastRun = (int)Storage::retrieve($locker, 0);
+	if(is_array($args))
+		array_unshift($args, $command);
+	else if($args != "")
+		$args = explode(" ", "$command $args");
+	else
+		$args = array($command);
 
-    $dateFormat = "D M j G:i:s T Y";
-    if($curTime - $lastRun < $interval)
-    {
-		// No need to say we're not running...
-        return;
-    }
+	$cronName = implode(".", $args);
+	$locker = "lastCronRun.$cronName";
+	$lastRun = (int)Storage::retrieve($locker, 0);
+	$dateFormat = "D M j G:i:s T Y";
 
-    Log::log("Cron $cronName running at ".date($dateFormat, $curTime));
+	if($curTime - $lastRun < $interval)
+		return;
 
-    Storage::store($locker, $curTime);
+	global $debug;
+	if ($debug)
+		Log::log("Cron $cronName running at ".date($dateFormat, $curTime));
 
-    $pid = pcntl_fork();
-    if($pid < 0)
-    {
-        Storage::store($locker, $lastRun);
-        return;
-    }
+	Storage::store($locker, $curTime);
 
-    if($pid != 0)
-        return;
+	$pid = pcntl_fork();
+	if($pid < 0)
+	{
+		Storage::store($locker, $lastRun);
+		return;
+	}
 
-    putenv("SILENT_CLI=1");
-    pcntl_exec("$base/cliLock.sh", $args);
-    Storage::store($locker, $lastRun);
-    die("Executing $command failed!");
+	if($pid != 0)
+		return;
+
+	putenv("SILENT_CLI=1");
+	pcntl_exec("$base/cliLock.sh", $args, array("EXECUTABLE" => $executable));
+	// Sleep for a second before starting the next tast..
+	sleep(1);
+	Storage::store($locker, $lastRun);
+	die("Executing $command failed!");
 }

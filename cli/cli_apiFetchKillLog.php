@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,83 +28,101 @@ class cli_apiFetchKillLog implements cliCommand
 		return ""; // Space seperated list
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
-		@$apiRowID = $parameters[0];
+		if (Util::isMaintenanceMode()) return;
+		$mod = (int) $parameters[0];
+		$timer = new Timer();
+		$highKillID = Db::queryField("select max(killID) highKillID from zz_killmails", "highKillID", array(), 0);
+		$activeKillID = $highKillID - 1000000;
+		while ($timer->stop() < 65000)
+		{
+			$apiRowID = Db::queryField("select apiRowID from zz_api_characters where modulus = :mod and ((maxKillID >= $activeKillID and cachedUntil < now()) or lastChecked < date_sub(now(), interval 24 hour)) order by lastChecked limit 1", "apiRowID", array(":mod" => $mod), 0);
+			if ($apiRowID === null) return;
 
-		$apiRow = Db::queryRow("select * from zz_api_characters where apiRowID = :id", array(":id" => $apiRowID), 0);
-		$maxKillID = $apiRow["maxKillID"];
-		$beforeKillID = 0;
+			$notRecentKillID = Storage::retrieve("notRecentKillID", 0);
+			$apiRow = $db->queryRow("select * from zz_api_characters where apiRowID = :id", array(":id" => $apiRowID), 0);
+			$maxKillID = $apiRow["maxKillID"];
+			$beforeKillID = 0;
+			$newMax = $maxKillID;
 
-		if (!$apiRow) CLI::out("|r|No such apiRowID: $apiRowID", true);
+			if (!$apiRow) CLI::out("|r|No such apiRowID: $apiRowID", true);
 
-		$keyID = trim($apiRow["keyID"]);
-		$vCode = Db::queryField("select vCode from zz_api where keyID = :keyID", "vCode", array(":keyID" => $keyID));
-		$isDirector = $apiRow["isDirector"];
-		$charID = $apiRow["characterID"];
+			$keyID = trim($apiRow["keyID"]);
+			$vCode = $db->queryField("select vCode from zz_api where keyID = :keyID", "vCode", array(":keyID" => $keyID));
+			$isDirector = $apiRow["isDirector"];
+			$charID = $apiRow["characterID"];
 
-		if ($keyID == "" || $vCode == "") die("no keyID or vCode");
+			if ($keyID == "" || $vCode == "") continue;
 
-		try {
-			do {
-				$pheal = Util::getPheal($keyID, $vCode);
-				$charCorp = ($isDirector == "T" ? 'corp' : 'char');
-				$pheal->scope = $charCorp;
-				$result = null;
+			$pheal = null;
+			try {
+				$firstIteration = true;
+				do {
+					$pheal = Util::getPheal($keyID, $vCode);
+					$charCorp = ($isDirector == "T" ? 'corp' : 'char');
+					$pheal->scope = $charCorp;
+					$result = null;
 
-				// Update last checked
-				Db::execute("update zz_api_characters set errorCode = 0, lastChecked = now() where apiRowID = :id", array(":id" => $apiRowID));
+					// Update last checked
+					//$db->execute("update zz_api_characters set errorCode = 0, lastChecked = now() where apiRowID = :id", array(":id" => $apiRowID));
 
-				$params = array();
-				if ($isDirector != "T") $params['characterID'] = $charID;
+					$params = array();
+					if ($isDirector != "T") $params['characterID'] = $charID;
 
-				if ($beforeKillID > 0) $params['beforeKillID'] = $beforeKillID;
+					if ($beforeKillID > 0) $params['beforeKillID'] = $beforeKillID;
 
-				if ($isDirector == "T") $result = $pheal->KillMails($params);
-				else $result = $pheal->KillMails($params);
+					if ($isDirector == "T") $result = $pheal->KillMails($params);
+					else $result = $pheal->KillMails($params);
 
-				$cachedUntil = $result->cached_until;
-				if ($cachedUntil == "") $cachedUntil = 0;
-				Db::execute("update zz_api_characters set cachedUntil = if(:cachedUntil = 0, date_add(now(), interval 1 hour), :cachedUntil), errorCode = '0' where apiRowID = :id", array(":id" => $apiRowID, ":cachedUntil" => $cachedUntil));
+					$cachedUntil = $result->cached_until;
+					if ($cachedUntil == "" || !$cachedUntil) $cachedUntil = date("Y-m-d H:i:s", time()+3600);
+					$keyID = trim($keyID);
 
-				$file = "/var/killboard/zkb_killlogs/{$keyID}_{$charID}_$beforeKillID.xml";
-				@unlink($file);
+					$aff = Api::processRawApi($keyID, $charID, $result);
+					if ($aff > 0) {
+						$keyID = "$keyID";
+						while (strlen($keyID) < 8) $keyID = " " . $keyID;
+						Log::log("KeyID: $keyID ($charCorp) added $aff kill" . ($aff == 1 ? "" : "s"));
+					}
+					$beforeKillID = 0;
+					foreach ($result->kills as $kill) {
+						$killID = $kill->killID;
+						if ($beforeKillID == 0) $beforeKillID = $killID;
+						else $beforeKillID = min($beforeKillID, $killID);
+						$newMax = max($newMax, $killID);
+					}
+					if ($firstIteration && sizeof($result->kills) == 0) $db->execute("update zz_api_characters set lastChecked = now(), errorCount = 0, errorCode = 0, cachedUntil = date_add(:cachedUntil, interval 2 hour) where apiRowID = :id", array(":id" => $apiRowID, ":cachedUntil" => $cachedUntil));
+					else $db->execute("update zz_api_characters set lastChecked = now(), cachedUntil = :cachedUntil, errorCount = 0, errorCode = 0, maxKillID = :maxKillID where apiRowID = :id", array(":id" => $apiRowID, ":cachedUntil" => $cachedUntil, ":maxKillID" => $newMax));
 
-				$aff = Api::processRawApi($keyID, $charID, $result);
-				if ($aff > 0) {
-					$keyID = "$keyID";
-					while (strlen($keyID) < 8) $keyID = " " . $keyID;
-					Log::log("KeyID: $keyID ($charCorp) added $aff kill" . ($aff == 1 ? "" : "s"));
+					$firstIteration = false;
+				} while ($aff > 24 || ($beforeKillID > 0 && $maxKillID == 0));
+			} catch (Exception $ex) {
+				$errorCode = $ex->getCode();
+				$db->execute("update zz_api_characters set cachedUntil = date_add(now(), interval 1 hour), lastChecked = now(), errorCount = errorCount + 1, errorCode = :code where apiRowID = :id", array(":id" => $apiRowID, ":code" => $errorCode));
+				switch($errorCode) {
+					case 28: // Timeouts
+					case 904: // temp ban from ccp's api server
+						$db->execute("replace into zz_storage values ('ApiStop904', date_add(now(), interval 5 minute))");
+						break;
+					case 119:
+					case 120:
+						// Don't log it
+						break;	
+					case 201: // Character does not belong to account.
+					case 222: // API has expired
+					case 221: // Invalid access, delete the toon from the char list until later re-verification
+					case 220: // Invalid Corporation Key. Key owner does not fullfill role requirements anymore.
+					case 403: // New error code for invalid API
+						$db->execute("delete from zz_api_characters where apiRowID = :id", array(":id" => $apiRowID));
+						break;
+					case 1001:
+						$db->execute("update zz_api_characters set cachedUntil = date_add(now(), interval 10 minute) where apiRowID = :id", array(":id" => $apiRowID));
+						break;
+					default:
+						Log::log($keyID . " " . $ex->getCode() . " " . $ex->getMessage());
 				}
-				$beforeKillID = 0;
-				foreach ($result->kills as $kill) {
-					$killID = $kill->killID;
-					if ($beforeKillID == 0) $beforeKillID = $killID;
-					else $beforeKillID = min($beforeKillID, $killID);
-				}
-				if ($aff > 0) {
-					error_log($pheal->xml, 3, $file);
-				}
-			} while ($aff > 25 || ($beforeKillID > 0 && $maxKillID == 0));
-		} catch (Exception $ex) {
-			$errorCode = $ex->getCode();
-			Db::execute("update zz_api_characters set cachedUntil = date_add(now(), interval 1 hour), errorCode = :code where apiRowID = :id", array(":id" => $apiRowID, ":code" => $errorCode));
-			switch($errorCode) {
-				case 119:
-				case 120:
-					// Don't log it
-					break;	
-				case 201: // Character does not belong to account.
-				case 222: // API has expired
-				case 221: // Invalid access, delete the toon from the char list until later re-verification
-				case 220: // Invalid Corporation Key. Key owner does not fullfill role requirements anymore.
-				case 403: // New error code for invalid API
-					Db::execute("delete from zz_api_characters where apiRowID = :id", array(":id" => $apiRowID));
-					break;
-				default:
-					Log::log($keyID . " " . $ex->getCode() . " " . $ex->getMessage());
 			}
-			return;
 		}
 	}
 }

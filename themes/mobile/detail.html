@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% if killdata.victim.characterID != 0 %}
+	{% set victim = killdata.victim.characterName %}
+{% else %}
+	{% set victim = killdata.victim.corporationName %}
+{% endif %}
+{% set pageTitle = killdata.victim.shipName ~ ' | ' ~ victim ~ ' | Killmail' %}
+{% block title %}{% include 'components/title.html' %}{% endblock %}
+
+{% set description = victim ~ " lost their " ~ killdata.victim.shipName ~ " worth " ~ killdata.info.total_price|number_format(2, '.', ',') ~ " ISK." %}
+{% set canonical = fullsiteurl ~ "/kill/" ~ killdata.info.killID ~ "/" %}
+
+{% block header %}
+{% if message %}
+<div class="alert">
+	<a class="close" data-dismiss="alert" href="#" aria-hidden="true">&times;</a>
+	{{ message }}
+</div>
+{% endif %}
+{% set showImage = true %}
+{% endblock %}
+
+{% block content %}
+<div class="col-lg-8" style="width:100%; padding-left: 0px;">
+	<div class="row">
+		<div class="col-lg-5" style="padding: 0px;">{% include 'components/fitting_wheel.html' %}</div>
+		<div class="col-lg-5" style="padding: 0px;">{% include 'components/victim_info.html' %}</div>
+		<div class="col-lg-5" style="padding: 0px;">{% include 'components/item_list.html' %}</div>
+
+		{% if extra.warInfo.dscr %}
+		<div>
+			<table class="table table-condensed" style="margin: 0px; text-align: center;">
+			<tr><th style='text-align: center;'>War</th></tr>
+			<tr><td><a href="/war/{{ extra.warInfo.warID }}/">{{ extra.warInfo.dscr }}</a></td></tr>
+			</table>
+		</div>
+		{% endif %}
+		{% if extra.invAll | length %}
+		<div>{% set field = extra.invAll %}{% include 'components/involved_summary.html' %}</div>
+		{% endif %}
+		<div style='margin-bottom: 0.25em;'>{% include 'components/tdfb.html' %}</div>
+		<div style="margin: 0px;">{% include 'components/attackers.html' %}</div>
+		<div><small>Kill Added: {{ extra.insertTime }}</small></div>
+		{% if disqusLoad %}
+			{% set disqusID = extra.commentID %}
+			<a name="comments"></a>
+			{% include 'components/disqus.html' %}
+		{% endif %}
+	</div>
+</div>
+
+{% endblock %}
+
+{% block opengraph %}
+	<meta name="twitter:title" content="{{ pageTitle }}">
+	<meta name="twitter:image" content="https://image.eveonline.com/Render/{{ killdata.victim.shipTypeID }}_64.png">
+	<meta name="twitter:card" content="summary">
+	<meta name="og:title" content="{{ pageTitle }}">
+	<meta name="og:url" content="{{ fullsiteurl }}/kill/{{ killdata.info.killID }}/">
+{% if finalBlow.characterName == NULL %}
+	<meta name="twitter:description" content="{{ killdata.victim.characterName }} ({{ killdata.victim.corporationName}}) lost their {{ killdata.victim.shipName }} in {{ killdata.info.solarSystemName }} ({{ killdata.info.regionName }})">
+	<meta name="og:description" content="{{ killdata.victim.characterName }} ({{ killdata.victim.corporationName}}) lost their {{ killdata.victim.shipName }} in {{ killdata.info.solarSystemName }} ({{ killdata.info.regionName }})">
+{% else %}
+	<meta name="twitter:description" content="{{ killdata.victim.characterName }} ({{ killdata.victim.corporationName}}) lost their {{ killdata.victim.shipName }} in {{ killdata.info.solarSystemName }} ({{ killdata.info.regionName }}). Final Blow by {{ finalBlow.characterName }} ({{ finalBlow.corporationName }}) flying in a {{ finalBlow.shipName }}. Total Value: {{ killdata.info.total_price|number_format(2, '.', ',')}} ISK">
+	<meta name="og:description" content="{{ killdata.victim.characterName }} ({{ killdata.victim.corporationName}}) lost their {{ killdata.victim.shipName }} in {{ killdata.info.solarSystemName }} ({{ killdata.info.regionName }}). Final Blow by {{ finalBlow.characterName }} ({{ finalBlow.corporationName }}) flying in a {{ finalBlow.shipName }}. Total Value: {{ killdata.info.total_price|number_format(2, '.', ',')}} ISK">
+{% endif %}
+	<meta name="og:image" content="https://image.eveonline.com/Render/{{ killdata.victim.shipTypeID }}_128.png">
+{% endblock %}

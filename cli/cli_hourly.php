@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -30,47 +30,92 @@ class cli_hourly implements cliCommand
 
 	public function getCronInfo()
 	{
-		return array(
-			3600 => ""
-		);
+		return array(3600 => "");
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
-		self::apiPercentage();
-		Db::execute("delete from zz_api_log where requestTime < date_sub(now(), interval 36 hour)");
-		Db::execute("update zz_killmails set kill_json = '' where processed = 2 and killID < 0 and kill_json != ''");
-		Db::execute("update zz_manual_mails set rawText = '' where killID > 0 and rawText != ''");
+		global $enableAnalyze;
 
-		$p = array();
-		$p["limit"] = 5;
-		$p["pastSeconds"] = 3 * 86400;
-		$p["kills"] = true;
+		$actualKills = Storage::retrieve("ActualKillCount");
+		$iteration = 0;
+		while ($actualKills > 0)
+		{
+			$iteration++;
+			$actualKills -= 1000000;
+			if ($actualKills > 0 && Storage::retrieve("{$iteration}mAnnounced", null) == null)
+			{
+				Storage::store("{$iteration}mAnnounced", true);
+				$message = "|g|Woohoo!|r| $iteration million kills surpassed!";
+				Log::irc($message);
+				Log::ircAdmin($message);
+			}
+		}
 
-		Db::execute("analyze table zz_participants");
-		Storage::store("Top3dayChars", json_encode(Info::doMakeCommon("Top Characters - Last 3 Days", "characterID", Stats::getTopPilots($p))));
-		Storage::store("Top3dayCorps", json_encode(Info::doMakeCommon("Top Corporations - Last 3 Days", "corporationID", Stats::getTopCorps($p))));
-		Storage::store("Top3dayAlli", json_encode(Info::doMakeCommon("Top Alliances - Last 3 Days", "allianceID", Stats::getTopAllis($p))));
-		Storage::store("TopIsk", json_encode(Stats::getTopIsk(array("pastSeconds" => (3*86400), "limit" => 5))));
-		Storage::store("TopPods", json_encode(Stats::getTopIsk(array("shipTypeID" => 670, "pastSeconds" => (3*86400), "limit" => 5))));
-		Storage::store("TopPoints", json_encode(Stats::getTopPoints("killID", array("losses" => true, "pastSeconds" => (3*86400), "limit" => 5))));
+		$highKillID = $db->queryField("select max(killID) highKillID from zz_killmails", "highKillID");
+		if ($highKillID > 1000000)
+			Storage::store("notRecentKillID", ($highKillID - 1000000));
 
+		self::apiPercentage($db);
 
-		Primer::cachePrimer();
+		$db->execute("delete from zz_api_log where requestTime < date_sub(now(), interval 2 hour)");
+		//$db->execute("update zz_killmails set kill_json = '' where processed = 2 and killID < 0 and kill_json != ''");
+		$db->execute("delete from zz_errors where date < date_sub(now(), interval 1 day)");
+
+		// Ensure char/corp tables know about all char/corps from API
+		$db->execute("insert ignore into zz_characters (characterID) select distinct characterID from zz_api_characters");
+		$db->execute("insert ignore into zz_corporations (corporationID) select distinct corporationID from zz_api_characters where corporationID > 0");
+
+		// Ensure ship search links to the ship itself
+		$db->execute("insert ignore into ccp_zship_search select distinct shipTypeID from zz_participants where shipTypeID != 0");
+
+		$fileCache = new FileCache();
+		$fileCache->cleanup();
+
+		$tableQuery = $db->query("show tables", array(), 0, false);
+		$tables = array();
+		foreach($tableQuery as $row)
+			foreach($row as $column) $tables[] = $column;
+
+		if($enableAnalyze)
+		{
+			$tableisgood = array("OK", "Table is already up to date", "The storage engine for the table doesn't support check");
+			$count = 0;
+			foreach ($tables as $table)
+			{
+				$count++;
+
+				$result = $db->queryRow("analyze table $table", array(), 0, false);
+				if (!in_array($result["Msg_text"], $tableisgood))
+					Log::ircAdmin("|r|Error analyzing table |g|$table|r|: " . $result["Msg_text"]);
+				else
+					Log::log("Analyzed $table");
+			}
+		}
+
+		// reset mails where the processed id is below -500
+		$db->execute("update zz_crest_killmail set processed = 0 where processed < -500", array(), false, false);
 	}
 
-	private static function apiPercentage()
+	private static function apiPercentage($db)
 	{
 		$percentage = Storage::retrieve("LastHourPercentage", 10);
-		$row = Db::queryRow("select sum(if(errorCode = 0, 1, 0)) good, sum(if(errorCode != 0, 1, 0)) bad from zz_api_characters");
+		$row = $db->queryRow("select sum(if(errorCode = 0, 1, 0)) good, sum(if(errorCode != 0, 1, 0)) bad from zz_api_characters");
 		$good = $row["good"];
 		$bad = $row["bad"];
-		if ($bad > (($bad + $good) * ($percentage / 100))) {
+		if ($bad > (($bad + $good) * ($percentage / 100)))
+		{
 			if($percentage > 15)
-				Log::irc("|r|API gone haywire?  Over $percentage% of API's reporting an error atm.");
+				Log::irc("|r|API gone haywire? Over $percentage% of API's reporting an error atm.");
+
 			$percentage += 5;
-		} else if ($bad < (($bad + $good) * (($percentage - 5) / 100))) $percentage -= 5;
-		if ($percentage < 10) $percentage = 10;
+		}
+		elseif ($bad < (($bad + $good) * (($percentage - 5) / 100)))
+			$percentage -= 5;
+
+		if ($percentage < 10)
+			$percentage = 10;
+
 		Storage::store("LastHourPercentage", $percentage);
 	}
 }

@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -30,26 +30,30 @@ class cli_summary implements cliCommand
 
 	public function getCronInfo()
 	{
-		return array(
-			3600 => ""
-		);
+		return array(0 => "");
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
-		$lastActualKills = Db::queryField("select contents count from zz_storage where locker = 'actualKills'", "count", array(), 0);
-		$actualKills = Db::queryField("select count(*) count from zz_killmails where processed = 1", "count", array(), 0);
+		global $beSocial;
+		if (!isset($beSocial)) $beSocial = false;
 
-		$lastTotalKills = Db::queryField("select contents count from zz_storage where locker = 'totalKills'", "count", array(), 0);
-		$totalKills = Db::queryField("select count(*) count from zz_killmails", "count", array(), 0);
+		$minute = date("i");
+		if ($minute != "00" && !in_array('-f', $parameters)) return;
 
-		Db::execute("replace into zz_storage (locker, contents) values ('totalKills', $totalKills)");
-		Db::execute("replace into zz_storage (locker, contents) values ('actualKills', $actualKills)");
-		Db::execute("delete from zz_storage where locker like '%KillsProcessed'");
+		$killsAdded = (int) Storage::retrieve("KillsAdded");
+		Storage::store("KillsAdded", 0);
+		Db::execute("update zz_storage set contents = 0 where locker = 'KillsAdded'");
+		if ($beSocial) Log::irc("|g|" . number_format($killsAdded, 0) . "|n| kills processed.");
 
-		$actualDifference = number_format($actualKills - $lastActualKills, 0);
-		$totalDifference = number_format($totalKills - $lastTotalKills, 0);
+		$lastActualKills = $db->queryField("select contents count from zz_storage where locker = 'actualKills'", "count", array(), 0);
+		$actualKills = $db->queryField("select count(*) count from zz_killmails where processed != 0", "count", array(), 0);
 
-		Log::irc("|g|$actualDifference|n| mails processed | |g|$totalDifference|n| kills added");
+		$lastTotalKills = $db->queryField("select contents count from zz_storage where locker = 'totalKills'", "count", array(), 0);
+		$totalKills = $db->queryField("select count(*) count from zz_killmails", "count", array(), 0);
+
+		$db->execute("replace into zz_storage (locker, contents) values ('totalKills', $totalKills)");
+		$db->execute("replace into zz_storage (locker, contents) values ('actualKills', $actualKills)");
+		$db->execute("delete from zz_storage where locker like '%KillsProcessed'");
 	}
 }

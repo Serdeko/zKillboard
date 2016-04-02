@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -30,36 +30,40 @@ class cli_populateCharacters implements cliCommand
 
 	public function getCronInfo()
 	{
-		return array(
-			60 => ""
-		);
+		return array(0 => "");
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
-		self::populateCharacters();
+		self::populateCharacters($db);
 	}
 
-	private static function populateCharacters()
+	private static function populateCharacters($db)
 	{
+		if (Util::isMaintenanceMode()) return;
 		global $baseDir;
 
 		$timer = new Timer();
 		$maxTime = 65 * 1000;
 
-		$fetchesPerSecond = 25;
+		// Reset 222's that are over a week old
+		$db->execute("update zz_api set errorCode = 0 where errorCode = 222 and lastValidation <= date_sub(now(), interval 7 day)");
+
+		$apiCount = $db->queryField("select count(*) count from zz_api where errorCode not in (203, 220, 222) and lastValidation <= date_add(now(), interval 1 minute)", "count", array(), 0);
+		if ($apiCount == 0) return;
+
+		$fetchesPerSecond = 10;
 		$iterationCount = 0;
 
 		while ($timer->stop() < $maxTime) {
-			$keyIDs = Db::query("select distinct keyID from zz_api where errorCode not in (203, 220) and lastValidation < date_sub(now(), interval 2 hour)
-					order by lastValidation, dateAdded desc limit 100", array(), 0);
+			$keyIDs = $db->query("select distinct keyID from zz_api where errorCode not in (203, 220, 222) and lastValidation < date_sub(now(), interval 2 hour) order by lastValidation, dateAdded desc limit 100", array(), 0);
 
 			foreach($keyIDs as $row) {
 				$keyID = $row["keyID"];
 				$m = $iterationCount % $fetchesPerSecond;
-				Db::execute("update zz_api set lastValidation = date_add(lastValidation, interval 5 minute) where keyID = :keyID", array(":keyID" => $keyID));
-				$command = "$baseDir/cliLock.sh apiFetchCharacters ".escapeshellarg($keyID); // REMEMBER TO CHECK IF THIS SHIT WORKS......
-				//Log::log($command);
+				$db->execute("update zz_api set lastValidation = date_add(lastValidation, interval 5 minute) where keyID = :keyID", array(":keyID" => $keyID));
+				$command = "flock -w 60 $baseDir/cache/locks/populate.$m php5 $baseDir/cli.php apiFetchCharacters " . escapeshellarg($keyID);
+				//Log::log("$command");
 				exec("$command >/dev/null 2>/dev/null &");
 				$iterationCount++;
 				if ($iterationCount % $fetchesPerSecond == 0) sleep(1);

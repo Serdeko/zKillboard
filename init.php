@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -16,8 +16,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+// Ensure PHP 5.4 or higher
+if (version_compare(phpversion(), '5.4.1', '<'))
+{
+	die("PHP 5.4 or higher is required");
+}
+
 // config load
 require_once( "config.php" );
+
+if($debug)
+{
+	ini_set('display_errors', 1);
+	error_reporting(E_ALL);
+}
 
 // vendor autoload
 require( "vendor/autoload.php" );

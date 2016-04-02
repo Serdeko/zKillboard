@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zLibrary
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -27,13 +26,13 @@ class Bin
 	 * get something from storage
 	 *
 	 * @static
-	 * @param $name
-	 * @param null $default
-	 * @return null
+	 * @param string $name
+	 * @param mixed $default
+	 * @return mixed
 	 */
 	public static function get($name, $default = null)
 	{
-		if (isset(Bin::$bin[$name])) return Bin::$bin[$name];
+		if (isset(self::$bin[$name])) return self::$bin[$name];
 		return $default;
 	}
 
@@ -41,12 +40,11 @@ class Bin
 	 * Store something
 	 *
 	 * @static
-	 * @param $name
-	 * @param $value
-	 * @return void
+	 * @param string $name
+	 * @param mixed $value
 	 */
 	public static function set($name, $value)
 	{
-		Bin::$bin[$name] = $value;
+		self::$bin[$name] = $value;
 	}
 }

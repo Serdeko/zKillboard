@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,32 +28,48 @@ class cli_fightFinder implements cliCommand
 		return ""; // Space seperated list
 	}
 
-	public function execute($parameters)
+	public function getCronInfo()
 	{
-		Db::execute("delete from zz_social where insertTime < date_sub(now(), interval 23 hour)");
-		$minPilots = 100;
-		$minWrecks = 100;
-		$result = Db::query("select * from (select solarSystemID, count(distinct characterID) count, count(distinct killID) kills from zz_participants where characterID != 0 and killID > 0 and dttm > date_sub(now(), interval 1 hour) group by 1 order by 2 desc) f where count >= $minPilots and kills > $minWrecks");
-		foreach($result as $row) {
+		return array(0 => ""); // Always run
+	}
+
+	public function execute($parameters, $db)
+	{
+		if (Util::isMaintenanceMode()) return;
+		global $beSocial, $fullAddr, $twitterName, $minPilots, $minWrecks;
+		if (!isset($minPilots)) $minPilots = 200;
+		if (!isset($minWrecks)) $minWrecks = 200;
+		if (!isset($beSocial) || $beSocial == false) return;
+
+		$db->execute("delete from zz_social where insertTime < date_sub(now(), interval 23 hour)");
+		$result = $db->query("select * from (select solarSystemID, count(distinct characterID) count, count(distinct killID) kills from zz_participants where characterID != 0 and killID > 0 and dttm > date_sub(now(), interval 1 hour) group by 1 order by 2 desc) f where count >= $minPilots and kills > $minWrecks");
+		foreach($result as $row)
+		{
 			$systemID = $row["solarSystemID"];
 			$key = ($row["solarSystemID"] * 100) + date("H");
 			$key2 = ($row["solarSystemID"] * 100) + date("H", time() + 3600);
 
-			$count = Db::queryField("select count(*) count from zz_social where killID = :killID", "count", array(":killID" => $key), 0);
-			if ($count != 0) continue;
-			Db::execute("insert ignore into zz_social (killID) values (:k1), (:k2)", array(":k1" => $key, ":k2" => $key2));
+			// Have we already reported this battle to the masses?
+			$socialCount = $db->queryField("select count(*) count from zz_social where killID = :killID", "count", array(":killID" => $key), 0);
+			$db->execute("insert ignore into zz_social (killID) values (:k1), (:k2)", array(":k1" => $key, ":k2" => $key2));
 
 			Info::addInfo($row);
 			$wrecks = number_format($row['kills'], 0);
 			$involved = number_format($row['count'], 0);
 			$system = $row["solarSystemName"];
 			$date = date("YmdH00");
-			$link = "https://zkillboard.com/related/$systemID/$date/";
+			$link = "$fullAddr/related/$systemID/$date/";
 
-			$message = "Battle detected in |g|$system|n| with |g|$involved|n| involved and |g|$wrecks|n| wrecks. |g|$link";
-			Log::irc($message);
-			// let this run for a few days to ensure it works correctly, then TODO make it twitter the msg too
-			//$message = Log::stripIRCColors($message);
+			if ($socialCount == 0)
+			{
+				$message = "Battle detected in |g|$system|n| with |g|$involved|n| involved and |g|$wrecks|n| wrecks.";
+				Log::irc($message . " |g|$link");
+
+				$message = Log::stripIRCColors($message . " $link #tweetfleet #eveonline");
+				$tweet = Twit::sendMessage($message);
+				$twitID = $tweet->id;
+				Log::irc("Message was also tweeted: https://twitter.com/$twitterName/status/$twitID");
+			}
 		}
 	}
 }

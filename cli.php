@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,7 +28,9 @@ if(getenv("SILENT_CLI"))
 
 $base = dirname(__FILE__);
 
-require_once "$base/init.php";
+require_once( "config.php" );
+
+require_once( "init.php" );
 
 array_shift($argv);
 $command = array_shift($argv);
@@ -39,16 +41,21 @@ if($command == "bashList")
 try
 {
 	$fileName = "$base/cli/cli_$command.php";
-	if ($command == "") CLI::out("|r|You haven't issued a command to execute.|n| Please use list to show all commands, or help <command> to see information on how to use the command", true);
-	if(!file_exists($fileName)) CLI::out("|r|Error running $command|n|. Please use list to show all commands, or help <command> to see information on how to use the command", true);
+	if ($command == "")
+		CLI::out("|r|You haven't issued a command to execute.|n| Please use list to show all commands, or help <command> to see information on how to use the command", true);
+	if(!file_exists($fileName))
+		CLI::out("|r|Error running $command|n|. Please use list to show all commands, or help <command> to see information on how to use the command", true);
 
 	require_once $fileName;
 	$className = "cli_$command";
 	$class = new $className();
 
-	if(!is_a($class, "cliCommand")) CLI::out("|r| Module $command does not implement interface cliCommand", true);
-	$base = __DIR__;
-	$class->execute($argv);
+	if(!is_a($class, "cliCommand"))
+		CLI::out("|r| Module $command does not implement interface cliCommand", true);
+
+	$db = new Db();
+	$db->execute("set session wait_timeout = 600");
+	$class->execute($argv, $db);
 }
 catch (Exception $ex)
 {
@@ -56,9 +63,21 @@ catch (Exception $ex)
 }
 
 interface cliCommand {
+
+	/**
+	 * @return string
+	 */
 	public function getDescription();
+
+	/**
+	 * @return string
+	 */
 	public function getAvailMethods();
-	public function execute($parameters);
+
+	/**
+	 * @return void
+	 */
+	public function execute($parameters, $db);
 }
 
 function listCommands()
@@ -73,13 +92,13 @@ function listCommands()
 			if($entry != "." && $entry != ".." && $entry != "base.php" && $entry != "cli_methods.php")
 			{
 				$s1 = explode("cli_", $entry);
-				$s2 = explode(".php", $s1[1]);
+				$s2 = explode(".php", @$s1[1]);
 				if(sizeof($s2) == 2)
 				{
 					require_once "$dir/$entry";
 					$command = $s2[0];
 					$className = "cli_$command";
-					$class = new $className();;
+					$class = new $className();
 					if(is_a($class, "cliCommand"))
 					{
 						$commands[] = $command;

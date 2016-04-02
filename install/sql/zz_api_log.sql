@@ -1,4 +1,3 @@
-
 DROP TABLE IF EXISTS `zz_api_log`;
 CREATE TABLE `zz_api_log` (
   `logID` int(16) NOT NULL AUTO_INCREMENT,
@@ -8,7 +7,5 @@ CREATE TABLE `zz_api_log` (
   `name` varchar(64) DEFAULT NULL,
   `options` varchar(512) DEFAULT NULL,
   PRIMARY KEY (`logID`),
-  KEY `requestTime` (`requestTime`,`scope`,`name`),
-  KEY `errorCode` (`errorCode`)
-) ENGINE=MyISAM AUTO_INCREMENT=352991008 DEFAULT CHARSET=latin1  ROW_FORMAT=COMPRESSED;
-
+  KEY `requestTime` (`requestTime`,`scope`,`name`)
+) ENGINE=Aria AUTO_INCREMENT=776824915 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 ROW_FORMAT=DYNAMIC;

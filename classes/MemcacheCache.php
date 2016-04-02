@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zCache
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -23,10 +22,10 @@ class MemcacheCache extends AbstractCache
 {
 	private $mc;
 
-	function __construct()
+	public function __construct()
 	{
 		global $memcacheServer, $memcachePort;
-	
+
 		$this->mc = new Memcache();
 		$this->mc->connect($memcacheServer, $memcachePort);
 	}
@@ -36,16 +35,25 @@ class MemcacheCache extends AbstractCache
 		return $this->mc->get($key);
 	}
 
+	/**
+	 * @param string $timeout
+	 */
 	public function set($key, $value, $timeout)
 	{
 		return $this->mc->set($key, $value, 0, $timeout);
 	}
 
+	/**
+	 * @param string $timeout
+	 */
 	public function replace($key, $value, $timeout)
 	{
 		return $this->mc->replace($key, $value, 0, $timeout);
 	}
 
+	/**
+	 * @param string $key
+	 */
 	public function delete($key)
 	{
 		return $this->mc->delete($key);

@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -17,72 +17,93 @@
  */
 class Util
 {
-	public static function setSubdomainGlobals($key, $row, $type)
-	{
-		global $subDomainKey, $subDomainRow;
-		$subDomainKey = $key;
-		$row["type"] = $type;
-		$subDomainRow = $row;
-		return true;
-	}
-
-	public static function isValidSubdomain($subDomain)
-	{
-		if ($subDomain === null || trim($subDomain) == "") return true;
-		$subDomain = str_replace("_", " ", $subDomain);
-		$array = array(":subDomain" => $subDomain);
-		$row = Db::queryRow("select factionID, name from zz_factions where ticker = :subDomain", $array, 3600);
-		if ($row != null) return Util::setSubdomainGlobals("factionID", $row, "faction");
-		/*$row = Db::queryRow("select allianceID, name from zz_alliances where ticker = :subDomain order by memberCount desc limit 1", $array, 3600);
-		if ($row != null) return Util::setSubdomainGlobals("allianceID", $row, "alliance");
-		$row = Db::queryRow("select corporationID, name from zz_corporations where ticker = :subDomain order by memberCount desc limit 1", $array, 3600);
-		if ($row != null) return Util::setSubdomainGlobals("corporationID", $row, "corporation");*/
-		$row = Db::queryRow("select * from zz_domains where domain = :subDomain", $array, 300);
-		if ($row) {
-			$entities = Db::query("SELECT * FROM zz_domains_entities WHERE domainID = :domainID", array(":domainID" => $row["domainID"]));
-			foreach($entities as $entity) {
-				$ent = array();
-				$ent["type"] = $entity["entityType"];
-				$ent[$entity["entityType"] . "ID"] = $entity["entityID"];
-				$ent["name"] = $entity["entityName"];
-				return Util::setSubdomainGlobals($entity["entityType"] . "ID", $ent, $entity["entityType"]);
-			}
-		}
-		return false;
-	}
-
 	public static function isMaintenanceMode()
 	{
 		return "true" == Db::queryField("select contents from zz_storage where locker = 'maintenance'", "contents", array(), 0);
 	}
 
+	public static function getMaintenanceReason()
+	{
+		return Storage::retrieve("MaintenanceReason", "");
+	}
 
+	public static function getNotification()
+	{
+		return Storage::retrieve("notification", null);
+	}
+
+	public static function is904Error()
+	{
+		$stop904 = Db::queryField("select count(*) count from zz_storage where locker = 'ApiStop904' and contents > now()", "count", array(), 1);
+		return $stop904 > 0;
+	}
+
+	public static function getCrest($url)
+	{
+		StatsD::increment("crest_calls");
+		\Perry\Setup::$fetcherOptions = ["connect_timeout" => 15, "timeout" => 30];
+		return \Perry\Perry::fromUrl($url);
+	}
+
+	/**
+	 * @param integer $keyID
+	 * @param string $vCode
+	 */
 	public static function getPheal($keyID = null, $vCode = null)
 	{
-		global $phealCacheLocation, $apiServer, $baseAddr;
+		global $phealCacheLocation, $apiServer, $baseAddr, $ipsAvailable;
 
-		PhealConfig::getInstance()->http_method = "curl";
-		PhealConfig::getInstance()->http_user_agent = "API Fetcher for http://$baseAddr";
-		PhealConfig::getInstance()->http_post = false;
-		PhealConfig::getInstance()->http_keepalive = true; // default 15 seconds
-		PhealConfig::getInstance()->http_keepalive = 10; // KeepAliveTimeout in seconds
-		PhealConfig::getInstance()->http_timeout = 30;
-		PhealConfig::getInstance()->cache = new PhealFileCache($phealCacheLocation);
-		PhealConfig::getInstance()->log = new PhealLogger();
-		PhealConfig::getInstance()->api_customkeys = true;
-		PhealConfig::getInstance()->api_base = $apiServer;
+		if (static::is904Error()) 
+		{
+			// Web requests shouldn't be hitting the API...
+			if (php_sapi_name() == 'cli')
+				exit();
 
-			if ($keyID != null && $vCode != null) $pheal = new Pheal($keyID, $vCode);
-			else $pheal = new Pheal();
+			return null;
+		}
+
+		\Pheal\Core\Config::getInstance()->http_method = "curl";
+		\Pheal\Core\Config::getInstance()->http_user_agent = "API Fetcher for http://$baseAddr";
+		if(!empty($ipsAvailable))
+		{
+			$max = count($ipsAvailable)-1;
+			$ipID = mt_rand(0, $max);
+			\Pheal\Core\Config::getInstance()->http_interface_ip = $ipsAvailable[$ipID];
+		}
+		\Pheal\Core\Config::getInstance()->http_post = false;
+		\Pheal\Core\Config::getInstance()->http_keepalive = true; // default 15 seconds
+		\Pheal\Core\Config::getInstance()->http_keepalive = 10; // KeepAliveTimeout in seconds
+		\Pheal\Core\Config::getInstance()->http_timeout = 30;
+		\Pheal\Core\Config::getInstance()->http_ssl_verifypeer = false;
+
+		if ($phealCacheLocation != null)
+			\Pheal\Core\Config::getInstance()->cache = new \Pheal\Cache\FileStorage($phealCacheLocation); // Implement own cache class that calls statsD
+		\Pheal\Core\Config::getInstance()->log = new PhealLogger();
+		\Pheal\Core\Config::getInstance()->api_customkeys = true;
+		\Pheal\Core\Config::getInstance()->api_base = $apiServer;
+
+		if ($keyID != null && $vCode != null)
+			$pheal = new \Pheal\Pheal($keyID, $vCode);
+		else
+			$pheal = new \Pheal\Pheal();
+
+		// Stats gathering, sadly phealng has no way of telling us if we're hitting the cache or not.
+		StatsD::increment("ccp_api");
+
+		// Return the API data to whomever requested it.
 		return $pheal;
 	}
 
 	public static function pluralize($string)
 	{
-		if (!Util::endsWith($string, "s")) return $string . "s";
+		if (!self::endsWith($string, "s")) return $string . "s";
 		else return $string . "es";
 	}
 
+	/**
+	 * @param string $haystack
+	 * @param string $needle
+	 */
 	public static function startsWith($haystack, $needle)
 	{
 		$length = strlen($needle);
@@ -94,17 +115,10 @@ class Util
 		return substr($haystack, -strlen($needle)) === $needle;
 	}
 
-	public static function firstUpper($str)
-	{
-		if (strlen($str) == 1) return strtoupper($str);
-		$str = strtolower($str);
-		return strtoupper(substr($str, 0, 1)) . substr($str, 1);
-	}
-
 	public static function getKillHash($killID = null, $kill = null)
 	{
 		if ($killID != null) {
-			$json = Db::queryField("select kill_json from zz_killmails where killID = :killID", "kill_json", array(":killID" => $killID), 0);
+			$json = Killmail::get($killID);
 			if ($json === null) throw new Exception("Cannot find kill $killID");
 			$kill = json_decode($json);
 			if ($kill === null) throw new Exception("Cannot json_decode $killID");
@@ -150,88 +164,124 @@ class Util
 		return number_format($value, $numDecimals) . self::$formatIskIndexes[$iskIndex];
 	}
 
-	public static function convertUriToParameters($additionalParameters = array())
+	public static function convertUriToParameters($additionalParameters = array(), $addExtraParameters = true)
 	{
 		$parameters = array();
 		@$uri = $_SERVER["REQUEST_URI"];
 		$split = explode("/", $uri);
-		if ($additionalParameters != null) foreach($additionalParameters as $key=>$value) {
-			if (strpos($key, "ID") !== false) {
-				$split[] = $key;
-				$split[] = $value;
-			}
-		}
-		//$split = array_merge($additionalParameters, $split);
 		$currentIndex = 0;
-		foreach ($split as $key) {
-			$value = $currentIndex + 1 < sizeof($split) ? $split[$currentIndex + 1] : null;
+		foreach ($split as $key)
+		{
+			$value = $currentIndex + 1 < count($split) ? $split[$currentIndex + 1] : null;
 			switch ($key) {
+				case "groupID":
+					// do nothing
+				break;
 				case "kills":
 				case "losses":
 				case "w-space":
+				case "lowsec":
+				case "nullsec":
+				case "highsec":
 				case "solo":
 					$parameters[$key] = true;
-					break;
-				case "character":
+				break;
 				case "characterID":
-				case "corporation":
 				case "corporationID":
-				case "alliance":
 				case "allianceID":
-				case "faction":
 				case "factionID":
-				case "ship":
 				case "shipID":
 				case "shipTypeID":
-				case "group":
-				case "groupID":
-				case "system":
 				case "solarSystemID":
 				case "systemID":
-				case "region":
 				case "regionID":
 					if ($value != null) {
 						if (strpos($key, "ID") === false) $key = $key . "ID";
 						if ($key == "systemID") $key = "solarSystemID";
 						else if ($key == "shipID") $key = "shipTypeID";
 						$exploded = explode(",", $value);
+						foreach($exploded as $aValue)
+						{
+							if ($aValue != (int) $aValue || ((int) $aValue) == 0) throw new Exception("Invalid ID passed: $aValue");
+						}
 						if (sizeof($exploded) > 10) throw new Exception("Too many IDs! Max: 10");
 						$parameters[$key] = $exploded;
 					}
-					break;
+				break;
 				case "page":
 					$value = (int)$value;
-					if ($value < 1) throw new Exception("page must be greater than or equal to 1");
+					if ($value < 1) $value = 1;
 					$parameters[$key] = $value;
-					break;
+				break;
 				case "orderDirection":
 					if (!($value == "asc" || $value == "desc")) throw new Exception("Invalid orderDirection!  Allowed: asc, desc");
-					$parameters[$key] = "desc";
-					$parameters[$key] = $value;
-					break;
+					$parameters[$key] = "desc"; // only desc
+					//$parameters[$key] = $value;
+				break;
 				case "pastSeconds":
 					$value = (int) $value;
 					if (($value / 86400) > 7) throw new Exception("pastSeconds is limited to a max of 7 days");
 					$parameters[$key] = $value;
-					break;
+				break;
 				case "startTime":
 				case "endTime":
 					$time = strtotime($value);
 					if($time < 0) throw new Exception("$value is not a valid time format");
 					$parameters[$key] = $value;
-					break;
+				break;
 				case "limit":
 					$value = (int) $value;
-					if ($value < 200) $parameters["limit"] = $value;
-					break;
+					if ($value <= 1000) $parameters["limit"] = $value;
+					elseif($value > 1000) $parameters["limit"] = 1000;
+					elseif($value <= 0) $parameters["limit"] = 1;
+				break;
+				case "beforeKillID":
+				case "afterKillID":
+				case "killID":
+					if (!is_numeric($value)) throw new Exception("$value is not a valid entry for $key");
+					$parameters[$key] = (int) $value;
+				break;
+				case "iskValue":
+					if (!is_numeric($value)) throw new Exception("$value is not a valid entry for $key");
+					$parameters[$key] = (int) $value;
+				break;
 				case "xml":
-					$value = true;
+					$parameters[$key] = true;
+				break;
+				case "pretty":
+					$parameters[$key] = true;
+				break;
+				case "no-attackers":
+					$parameters[$key] = true;
+				break;
+				case "no-items":
+					$parameters[$key] = true;
+				break;
+				case "finalblow-only":
+					$parameters[$key] = true;
+				break;
+				case "api":
+					$parameters[$key] = true;
+				break;
 				default:
-					if (is_numeric($value) && $value < 0) throw new Exception("$value is not a valid entry for $key");
-					if ($key != "" && $value != "") $parameters[$key] = $value;
+					if($addExtraParameters == true)
+					{
+						if (is_numeric($value) && $value < 0) continue; //throw new Exception("$value is not a valid entry for $key");
+						if ($key != "" && $value != "") $parameters[$key] = $value;
+					}
+
+					// Add more parameters to the $parameters array
+					if(!empty($additionalParameters))
+					{
+						foreach($additionalParameters as $extra)
+							if($extra == $key)
+								$parameters[$key] = $value;
+					}
+				break;
 			}
 			$currentIndex++;
 		}
+
 		if (isset($parameters["page"]) && $parameters["page"] > 10 && isset($parameters["api"])) {
 			// Verify that the request is for a character, corporation, or alliance
 			// This will prevent scrape attempts against regions, ships, systems, etc. which
@@ -241,7 +291,34 @@ class Util
 			foreach ($legitEntities as $entity) {
 				$legit |= in_array($entity, array_keys($parameters));
 			}
-			if (!$legit) throw new Exception("page > 10 not allowed for this modifier type, please see API documentation");
+			// The API doesn't handle Exceptions that well, so we have to output json/xml for them..
+			if (!$legit)
+			{
+				$date = date("Y-m-d H:i:s");
+				$cachedUntil = date("Y-m-d H:i:s", time() + 3600);
+				if(stristr($_SERVER["REQUEST_URI"], "xml"))
+				{
+					$data = "<?xml version=\"1.0\" encoding=\"UTF-8\"?" . ">"; // separating the ? and > allows vi to still color format code nicely
+					$data .= "<eveapi version=\"2\" zkbapi=\"1\">";
+					$data .= "<currentTime>$date</currentTime>";
+					$data .= "<result>";
+					$data .= "<error>A maximum of 10 pages is allowed for the modifier type you are using.</error>";
+					$data .= "</result>";
+					$data .= "<cachedUntil>$cachedUntil</cachedUntil>";
+					$data .= "</eveapi>";
+					header("Content-type: text/xml; charset=utf-8");
+				}
+				else
+				{
+					header("Content-type: application/json; charset=utf-8");
+					$data = json_encode(array("Error" => "A maximum of 10 pages is allowed for the modifier type you are using.", "cachedUntil" => $cachedUntil));
+				}
+				header("Retry-After: " . $cachedUntil . " GMT");
+				header("HTTP/1.1 409 Conflict");
+				header("Etag: ".(md5(serialize($data))));
+				echo $data;
+				die();
+			}
 		}
 		return $parameters;
 	}
@@ -293,71 +370,6 @@ class Util
 		return self::$longMonths[$month];
 	}
 
-	public static function scrapeCheck()
-	{
-		global $app, $apiTimeBetweenAccess, $apiWhiteList;
-
-		$ip = IP::get();
-		$isValidScraper = false;
-		foreach ($apiWhiteList as $validScraper)
-			if (strpos($ip, $validScraper) !== false)
-				$isValidScraper = true;
-
-		if(!$isValidScraper)
-		{
-			$session = array("access" => null);
-			$session = Cache::get("session_$ip");
-			$date = date("Y-m-d H:i:s");
-			$cachedUntil = date("Y-m-d H:i:s", time() + $apiTimeBetweenAccess);
-			header("X-Time-Between-Req: ".$apiTimeBetweenAccess);
-
-			if($session["access"] >= (time() - $apiTimeBetweenAccess))
-			{
-				if(stristr($_SERVER["REQUEST_URI"], "xml"))
-				{
-					$data = '<?xml version="1.0" encoding="UTF-8"?>';
-					$data .= '<eveapi version="2" zkbapi="1">';
-					$data .= "<currentTime>$date</currentTime>";
-					$data .= "<result>";
-					$data .= "<error>You have requested data too fast, please keep atleast $apiTimeBetweenAccess seconds between access..</error>";
-					$data .= "</result>";
-					$data .= "<cachedUntil>$cachedUntil</cachedUntil>";
-					$data .= "</eveapi>";
-					header("Content-type: text/xml; charset=utf-8");
-				}
-				else
-				{
-					header("Content-type: application/json; charset=utf-8");
-					$data = json_encode(array("Error" => "You have requested data too fast, please keep atleast $apiTimeBetweenAccess seconds between access.."));
-				}
-				header("Retry-After: " . $cachedUntil . " GMT");
-				header("HTTP/1.1 403 Forbidden");
-				header("Etag: ".(md5(serialize($data))));
-				header("+".$apiTimeBetweenAccess." seconds");
-				echo $data;
-				die();
-			}
-
-			$session["access"] = time();
-			Cache::set("session_$ip", $session);
-		}
-	}
-
-	public static function isValidCallback($subject)
-	{
-		$identifier_syntax = '/^[$_\p{L}][$_\p{L}\p{Mn}\p{Mc}\p{Nd}\p{Pc}\x{200C}\x{200D}]*+$/u';
-
-		$reserved_words = array('break', 'do', 'instanceof', 'typeof', 'case',
-				'else', 'new', 'var', 'catch', 'finally', 'return', 'void', 'continue', 
-				'for', 'switch', 'while', 'debugger', 'function', 'this', 'with', 
-				'default', 'if', 'throw', 'delete', 'in', 'try', 'class', 'enum', 
-				'extends', 'super', 'const', 'export', 'import', 'implements', 'let', 
-				'private', 'public', 'yield', 'interface', 'package', 'protected', 
-				'static', 'null', 'true', 'false');
-
-		return preg_match($identifier_syntax, $subject) && ! in_array(mb_strtolower($subject, 'UTF-8'), $reserved_words);
-	}
-
 	public static function deleteKill($killID)
 	{
 		if($killID < 0)
@@ -369,11 +381,164 @@ class Util
 			Stats::calcStats($killID, false);
 			// Remove it from the kill tables
 			Db::execute("delete from zz_participants where killID = :killID", array(":killID" => $killID));
-			Db::execute("delete from zz_items where killID = :killID", array(":killID" => $killID));
 			// Mark the kill as deleted
 			Db::execute("update zz_killmails set processed = 2 where killID = :killID", array(":killID" => $killID));
 			return true;
 		}
 		return false;
+	}
+
+	public static function themesAvailable()
+	{
+		$dir = "themes/";
+		$avail = scandir($dir);
+		foreach($avail as $key => $val)
+			if($val == "." || $val == "..")
+				unset($avail[$key]);
+		return $avail;
+	}
+
+	/**
+	 * @param string $haystack
+	 */
+	public static function strposa($haystack, $needles=array(), $offset=0)
+	{
+			$chr = array();
+			foreach($needles as $needle) {
+					$res = strpos($haystack, $needle, $offset);
+					if ($res !== false) $chr[$needle] = $res;
+			}
+			if(empty($chr)) return false;
+			return min($chr);
+	}
+
+	/**
+	 * @param string $url
+	 * @return string|null $result
+	 */
+	public static function getData($url, $cacheTime = 3600)
+	{
+		global $ipsAvailable, $baseAddr;
+
+		$md5 = md5($url);
+		$result = $cacheTime > 0 ? Cache::get($md5) : null;
+
+		if(!$result)
+		{
+			$curl = curl_init();
+			curl_setopt_array($curl, array(
+				CURLOPT_USERAGENT 			=> "zKillboard dataGetter for site: {$baseAddr}",
+				CURLOPT_TIMEOUT 			=> 30,
+				CURLOPT_POST 				=> false,
+				CURLOPT_FORBID_REUSE 		=> false,
+				CURLOPT_ENCODING 			=> "",
+				CURLOPT_URL 				=> $url,
+				CURLOPT_HTTPHEADER 			=> array("Connection: keep-alive", "Keep-Alive: timeout=10, max=1000"),
+				CURLOPT_RETURNTRANSFER 		=> true,
+				CURLOPT_FAILONERROR			=> true
+				)
+			);
+
+			if(count($ipsAvailable) > 1)
+			{
+				$ip = $ipsAvailable[time() % count($ipsAvailable)];
+				curl_setopt($curl, CURLOPT_INTERFACE, $ip);
+			}
+			$result = curl_exec($curl);
+			if ($cacheTime > 0) Cache::set($md5, $result, $cacheTime);
+		}
+
+		return $result;
+	}
+
+	/**
+	 * @param string $url
+	 * @param array
+	 * @param array
+	 * @return array $result
+	 */
+	public static function postData($url, $postData = array(), $headers = array())
+	{
+		global $ipsAvailable, $baseAddr;
+		$userAgent = "zKillboard dataGetter for site: {$baseAddr}";
+		if(!isset($headers))
+			$headers = array("Connection: keep-alive", "Keep-Alive: timeout=10, max=1000");
+
+		$curl = curl_init();
+		$postLine = "";
+
+		if(!empty($postData))
+			foreach($postData as $key => $value)
+				$postLine .= $key . "=" . $value . "&";
+
+		rtrim($postLine, "&");
+
+		curl_setopt($curl, CURLOPT_URL, $url);
+		curl_setopt($curl, CURLOPT_USERAGENT, $userAgent);
+		curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+		if(!empty($postData))
+		{
+			curl_setopt($curl, CURLOPT_POST, count($postData));
+			curl_setopt($curl, CURLOPT_POSTFIELDS, $postLine);
+		}
+
+		if(count($ipsAvailable) > 0)
+		{
+			$ip = $ipsAvailable[time() % count($ipsAvailable)];
+			curl_setopt($curl, CURLOPT_INTERFACE, $ip);
+		}
+		curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, true);
+		curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, 2);
+
+		$result = curl_exec($curl);
+
+		curl_close($curl);
+		return $result;
+	}
+
+	/**
+	 * Gets post data, and returns it
+	 * @param  string $var The variable you can to return
+	 * @return string|null
+	 */
+	public static function getPost($var)
+	{
+		return isset($_POST[$var]) ? $_POST[$var] : null;
+	}
+
+	public static function informationPages()
+	{
+		global $baseDir, $theme;
+		$tDir = $baseDir . "themes/" . $theme . "/information/";
+		$data = null;
+		$pages = array();
+
+		if(is_dir($tDir))
+			$data = scandir($tDir);
+
+		if($data)
+		{
+			foreach($data as $key =>  $file)
+			{
+				if($file == "." || $file == "..")
+					continue;
+
+				if(is_dir($tDir . $file))
+				{
+					$subData = scandir($tDir . $file);
+					foreach($subData as $key => $subDir)
+					{
+						if($subDir == "." || $subDir == "..")
+							continue;
+
+						$pages[$file][] = array("name" => strtolower(str_replace(".md", "", $subDir)), "path" => "$tDir$file/$subDir");
+					}
+				}
+				else
+					$pages[strtolower(str_replace(".md", "", $file))][] = array("name" => strtolower(str_replace(".md", "", $file)), "path" => "$tDir$file");
+			}
+		}
+		return $pages;
 	}
 }

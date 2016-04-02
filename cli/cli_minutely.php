@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -25,52 +25,46 @@ class cli_minutely implements cliCommand
 
 	public function getAvailMethods()
 	{
-		return "killsLastHour cloudFlareRegister cloudFlareDelete fileCacheClean all"; // Space seperated list
+		return "";
 	}
 
 	public function getCronInfo()
 	{
-		return array(
-			60 => "all"
-		);
+		return array(0 => "");
 	}
 
-	public function execute($parameters)
+	public function execute($parameters, $db)
 	{
+		if (Util::isMaintenanceMode()) return;
 		global $base;
 		chdir($base);
-		if (sizeof($parameters) == 0 || $parameters[0] == "") CLI::out("Usage: |g|help <command>|n| To see a list of commands, use: |g|list", true);
-		$command = $parameters[0];
 
-		switch($command)
-		{
-			case "all":
-				$killsLastHour = Db::queryField("select count(*) count from zz_killmails where insertTime > date_sub(now(), interval 1 hour)", "count");
-				Storage::store("KillsLastHour", $killsLastHour);
-				Domains::deleteDomainsFromCloudflare();
-				Domains::registerDomainsWithCloudflare();
-				$fc = new FileCache;
-				$fc->cacheDir = "$base/cache/queryCache/";
-				$fc->cleanUp();
-			break;
+		// Cleanup old sessions
+		$db->execute("delete from zz_users_sessions where validTill < now()");
 
-			case "killsLastHour":
-				$killsLastHour = Db::queryField("select count(*) count from zz_killmails where insertTime > date_sub(now(), interval 1 hour)", "count");
-				Storage::store("KillsLastHour", $killsLastHour);
-			break;
+		// Cleanup deleted manual mails
+		$db->execute("delete from zz_killmails where processed = 2 and kill_json = '' and killID < 0 limit 10000");
 
-			case "cloudFlareRegister";
-				Domains::registerDomainsWithCloudflare();
-			break;
+		// Keep the account balance table clean
+		$db->execute("delete from zz_account_balance where balance = 0");
 
-			case "cloudFlareDelete";
-				Domains::deleteDomainsFromCloudflare();
-			break;
+		$killsLastHour = $db->queryField("select count(*) count from zz_killmails where insertTime > date_sub(now(), interval 1 hour)", "count");
+		Storage::store("KillsLastHour", $killsLastHour);
+		$db->execute("delete from zz_analytics where dttm < date_sub(now(), interval 1 hour)");
+		$db->execute("delete from zz_scrape_prevention where dttm < date_sub(now(), interval 1 hour)");
 
-			case "fileCacheClean";
-				$fc = new FileCache;
-				$fc->cleanUp();
-			break;
-		}
+		$fc = new FileCache("$base/cache/queryCache/");
+		$fc->cleanUp();
+
+		// Cleanup subdomain stuff
+		$db->execute("update zz_subdomains set adfreeUntil = null where adfreeUntil < now()");
+		$db->execute("update zz_subdomains set banner = null where banner = ''");
+		$db->execute("delete from zz_subdomains where adfreeUntil is null and banner is null and (alias is null or alias = '')");
+
+		// Expire change expirations
+		$db->execute("update zz_users set change_expiration = null, change_hash = null where change_expiration < date_sub(now(), interval 3 day)");
+
+		// Reparse kills with an error
+		$db->execute("update zz_killmails set processed = 0 where processed = 2");
 	}
 }

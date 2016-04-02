@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -16,15 +16,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-if($_POST)
+$password = Util::getPost("password");
+$password2 = Util::getPost("password2");
+if($password && $password2)
 {
-    $password = "";
-    $password2 = "";
-    if(isset($_POST["password"]))
-        $password = $_POST["password"];
-    if(isset($_POST["password2"]))
-        $password2 = $_POST["password2"];
-    
+    $message = "";
+    $messagetype = "";
+    $password = Util::getPost("password");
+    $password2 = Util::getPost("password2");
+
     if(!$password || !$password2)
     {
         $message = "Password missing, try again..";
@@ -45,6 +45,7 @@ if($_POST)
     }
     $app->render("changepassword.html" , array("message" => $message, "messagetype" => $messagetype));
 }
+
 else
 {
 	$date = date("Y-m-d H:i:s");

@@ -1,63 +1,57 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
-// Load modules + database stuff (and the config)
-require( "init.php" );
+// Include Init
+require_once( "init.php" );
 
 // initiate the timer!
 $timer = new Timer();
 
 // Starting Slim Framework
 $app = new \Slim\Slim($config);
+//$app->add(new pageCache());
 
 // Session
+$session = new zKBSession();
+session_set_save_handler($session, true);
 session_cache_limiter(false);
 session_start();
 
 // Check if the user has autologin turned on
 if(!User::isLoggedIn()) User::autoLogin();
 
+// Detect mobile devices
+$detect = new Mobile_Detect();
+$isMobile = $detect->isMobile() ? true : false;
+$isTablet = $detect->isTablet() ? true : false;
+
 // Theme
-$viewtheme = null;
 if(User::isLoggedIn())
-	$viewtheme = UserConfig::get("viewtheme");
-$app->config(array("templates.path" => $baseDir."templates/" . ($viewtheme ? $viewtheme : "bootstrap")));
+	$theme = UserConfig::get("theme");
+if(!isset($theme))
+	$theme = "zkillboard";
+elseif(!is_dir("themes/$theme"))
+	$theme = "zkillboard";
+if($isMobile && !$isTablet)
+	$theme = "mobile";
+
+$app->config(array("templates.path" => $baseDir."themes/" . $theme));
 
 // Error handling
 $app->error(function (\Exception $e) use ($app){
     include ( "view/error.php" );
 });
 
-// Determine domain
-$serverName = @$_SERVER["SERVER_NAME"];
-//if(Db::queryField("SELECT domain FROM zz_domains WHERE domain = :domain", "domain", array(":domain" => $serverName)))
-//	Util::isValidSubdomain($serverName);
-
-$restrictedSubDomains = array("www", "email", "mx", "ipv6", "blog", "forum", "cdn", "content", "static", "api", "image", "websocket", "news", "comments");
-$subDomain = Util::endsWith($serverName, ".".$baseAddr) ? str_replace(".".$baseAddr, "", $serverName) : null;
-if (in_array($subDomain, $restrictedSubDomains) || !Util::isValidSubdomain($subDomain))
-	header("Location: $fullAddr");
-
 // Load the routes - always keep at the bottom of the require list ;)
 include( "routes.php" );
 
 // Load twig stuff
 include( "twig.php" );
+
+// Load the theme stuff AFTER routes and Twig, so themers can add crap to twig's global space
+require_once("themes/$theme/$theme.php");
+
+// Tell statsD that there is a hit
+StatsD::increment("website_hit");
+StatsD::timing("website_loadTime", Util::pageTimer());
 
 // Run the thing!
 $app->run();

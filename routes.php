@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -15,24 +15,27 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
 $app->notFound(function () use ($app) {
-    $app->render('404.html');
+	$app->redirect("..", 302);
 });
 
 // Default route
-$app->get("/", function () use ($app){
-    include( "view/index.php" );
+$app->get("/(page/:page/)", function ($page = 1) use ($app){
+	include( "view/index.php" );
 });
 
-//  information about zKillboard
-$app->get("/information(/:page)/", function($page = "about") use ($app) {
-    include( "view/information.php" );
+$app->get("/kills.html/", function($page = "about") use ($app) {
+die("<script type='text/javascript'>location.reload();</script>");
+});
+
+//  Information about zKillboard
+$app->get("/information/(:page/)(:subPage/)", function($page = "about", $subPage = null) use ($app) {
+	include( "view/information.php" );
 });
 
 // Support
-$app->get("/support(/:page)/", function($page = "support") use ($app) {
-	include( "view/support.php" );
+$app->get("/livechat/", function() use ($app) {
+	include( "view/livechat.php" );
 });
 
 // Tickets
@@ -45,145 +48,149 @@ $app->map("/tickets/view/:id/", function($id) use ($app) {
 })->via("GET", "POST");
 
 // Campaigns
-$app->map("/campaigns/:type(/:id)/", function($type = "all", $id = NULL) use($app) {
-    include( "view/campaigns.php" );
+$app->map("/campaign/:uri/", function($uri) use($app) {
+	include( "view/campaign.php" );
 })->via("GET");
 
 // Tracker
-$app->get("/tracker/", function() use ($app) {
-    include( "view/tracker.php" );
+$app->get("/tracker(/page/:page)/", function($page = 1) use ($app) {
+	include( "view/tracker.php" );
 });
 
 // View kills
 $app->get("/kills/page/:page/", function($page = 1) use ($app) {
-    $type = NULL;
-    include( "view/kills.php" );
+	$type = NULL;
+	include( "view/kills.php" );
 });
 $app->get("/kills(/:type)(/page/:page)/", function($type = NULL, $page = 1) use ($app) {
-    include( "view/kills.php" );
+	include( "view/kills.php" );
 });
 
 // View related kills
-$app->get("/related/:system/:time/", function($system, $time) use ($app) {
-    include( "view/related.php" );
+$app->get("/related/:system/:time/(o/:options/)", function($system, $time, $options = "") use ($app) {
+	include( "view/related.php" );
 });
 
-//killmap
-$app->get("/map/", function() use ($app) {
-	$app->render("map.html");
+// View Battle Report
+$app->get("/br/:battleID/", function($battleID) use ($app) {
+	include( "view/battle_report.php" );
+});
+
+// View Battle Report
+$app->get("/brsave/", function() use ($app) {
+	include( "view/brsave.php" );
 });
 
 // View top
 $app->get("/top/lasthour/", function() use ($app) {
-    include( "view/lasthour.php" );
+	include( "view/lasthour.php" );
 });
 $app->get("/ranks/:pageType/:subType/", function($pageType, $subType) use ($app) {
-    include( "view/ranks.php" );
+	include( "view/ranks.php" );
 });
+
 $app->get("/top(/:type)(/:page)(/:time+)/", function($type = "weekly", $page = NULL, $time = array()) use ($app) {
-    include( "view/top.php" );
+	include( "view/top.php" );
 });
 
 // Raw Kill Detail
 $app->get("/raw/:id/", function($id) use ($app) {
-        include( "view/raw.php" );
+		include( "view/raw.php" );
 });
 
 // Kill Detail View
-$app->map("/detail/:id(/:pageview)/", function($id, $pageview = "overview") use ($app) {
-    include( "view/detail.php" );
+$app->get("/detail/:id(/:pageview)/", function($id, $pageview = "overview") use ($app) {
+	$app->redirect("/kill/$id/", 301); // Permanent redirect
+	die();
+});
+$app->get("/kill/:id(/:pageview)/", function($id, $pageview = "overview") use ($app) {
+	include( "view/detail.php" );
 })->via("GET", "POST");
 
 // Search
 $app->map("/search(/:search)/", function($search = NULL) use ($app) {
-    include( "view/search.php" );
+	include( "view/search.php" );
 })->via("GET", "POST");
 
 // Login stuff
-$app->map("/login/", function() use ($app) {
-    global $cookie_name, $cookie_time;
-    include( "view/login.php" );
+$app->map("/dlogin/", function() use ($app) {
+	global $cookie_name, $cookie_time;
+	include( "view/dlogin.php" );
 })->via("GET", "POST");
+
+$app->map("/login/", function() use ($app) {
+	global $cookie_name, $cookie_time;
+	include( "view/login.php" );
+})->via("GET", "POST");
+
+// Sitemap
+$app->get("/sitemap/", function() use ($app) {
+	global $cookie_name, $cookie_time, $baseAddr;
+	include( "view/sitemap.php" );
+});
 
 // Logout
 $app->get("/logout/", function() use ($app) {
-    global $cookie_name, $cookie_time, $baseAddr;
-    include( "view/logout.php" );
+	global $cookie_name, $cookie_time, $baseAddr;
+	include( "view/logout.php" );
 });
 
 // Forgot password
 $app->map("/forgotpassword/", function() use ($app) {
-    global $cookie_name, $cookie_time;
-    include( "view/forgotpassword.php" );
+	global $cookie_name, $cookie_time;
+	include( "view/forgotpassword.php" );
 })->via("GET", "POST");
 
 // Change password
 $app->map("/changepassword/:hash/", function($hash) use ($app) {
-    include( "view/changepassword.php" );
+	include( "view/changepassword.php" );
 })->via("GET", "POST");
 
 // Register
 $app->map("/register/", function() use ($app) {
-    global $cookie_name, $cookie_time;
-    include( "view/register.php" );
+	global $cookie_name, $cookie_time;
+	include( "view/register.php" );
 })->via("GET", "POST");
 
 // Account
 $app->map("/account(/:req)(/:reqid)/", function($req = NULL, $reqid = NULL) use ($app) {
-    global $cookie_name, $cookie_time;
-    include( "view/account.php" );
+	global $cookie_name, $cookie_time;
+	include( "view/account.php" );
 })->via("GET", "POST");
 
 // Moderator
-$app->map("/moderator(/:req)(/:id)/", function ($req = NULL, $id = NULL) use ($app) {
-    global $cookie_name, $cookie_time;
-    include( "view/moderator.php" );
-})->via("GET", "POST");
-
-// Admin
-$app->map("/admin(/:req)(/:id)/", function ($req = NULL,$id=NULL) use ($app) {
-    global $cookie_name, $cookie_time;
-    include( "view/admin.php" );
+$app->map("/moderator(/:req)(/:id)(/page/:page)/", function ($req = NULL, $id = NULL, $page = 1) use ($app) {
+	global $cookie_name, $cookie_time;
+	include( "view/moderator.php" );
 })->via("GET", "POST");
 
 // EveInfo
 $app->get("/item/:id/", function($id) use ($app) {
-    global $oracleURL;
-    include ("view/item.php" );
+	global $oracleURL;
+	include ("view/item.php" );
 });
-
-// Give list of character id's to evewho
-$app->get("/evewhoc/", function() use ($app) { include("view/evewhoc.php");});
 
 // StackTrace
 $app->get("/stacktrace/:hash/", function($hash) use ($app) {
-    $q = Db::query("SELECT error, url FROM zz_errors WHERE id = :hash", array(":hash" => $hash));
+	$q = Db::query("SELECT error, url FROM zz_errors WHERE id = :hash", array(":hash" => $hash));
 	$trace = $q[0]["error"];
 	$url = $q[0]["url"];
-    $app->render("/components/stacktrace.html", array("stacktrace" => $trace, "url" => $url));
+	$app->render("/components/stacktrace.html", array("stacktrace" => $trace, "url" => $url));
+});
+
+$app->get("/comments/", function() use ($app) {
+	$app->render("/comments.html");
 });
 
 // API
-$app->get("/api/stats/:flags+/", function($flags) use ($app) {
-    include( "view/apistats.php" );
-});
-
-$app->get("/api/dna(/:flags+)/", function($flags = null) use ($app) {
-    include( "view/apidna.php" );
-});
-
-$app->get("/api/:input+", function($input) use ($app) {
-    include( "view/api.php" );
-});
-
-// RSS
-$app->get("/chart/:chartID/", function($chartID) use ($app) {
-    include( "view/chart.php" );
+$app->get("/api(/:flags+)/", function($flags = NULL) use ($app) {
+	include( "view/api.php" );
 });
 
 // Kills in the last hour
 $app->get("/killslasthour/", function() use ($app) {
-    echo number_format(Storage::retrieve("KillsLastHour", null));
+die("<script type='text/javascript'>location.reload();</script>");
+	die(number_format(Storage::retrieve("KillsLastHour", null)));
 });
 
 // Post
@@ -194,24 +201,101 @@ $app->post("/post/", function() use ($app) {
 	include( "view/postmail.php" );
 });
 
-// Revoke
-$app->get("/revoke/", function() use ($app) {
-	$app->render("revoked_reason.html");
-});
-
 // Autocomplete
 $app->map("/autocomplete/", function() use ($app) {
 	include( "view/autocomplete.php" );
 })->via("POST");
 
-// EVE-KILL kill_detail intercept
-$app->get("/evekilldetailintercept/:id/", function($id) use ($app) {
-	include( "view/evekilldetailintercept.php" );
+// Intel
+$app->get("/intel/supers/", function() use ($app) {
+	include( "view/intel.php" );
 });
 
-// EVE-KILL kill_related intercept
-$app->get("/evekillrelatedintercept/:id/", function($id) use ($app) {
-	include( "view/evekillrelatedintercept.php" );
+// primer
+$app->get("/primer/", function() use ($app) {
+	include("view/primer.php");
+});
+
+// Sharing Crest Mails
+$app->get("/crestmail/:killID/:hash/", function($killID, $hash) use ($app) {
+	include("view/crestmail.php");
+});
+
+// War!
+$app->get("/war/:warID/", function($warID) use ($app) {
+	include("view/war.php");
+});
+$app->get("/wars/", function() use ($app) {
+	include("view/wars.php");
+});
+
+// EVE SSO
+$app->get("/auth/eve/", function() use ($app){
+	global $ssoEnable;
+
+	if($ssoEnable == false)
+		die("SSO is disabled");
+
+	$code = isset($_GET["code"]) ? $_GET["code"] : null;
+	$state = isset($_GET["state"]) ? $_GET["state"] : null;
+	//header("Content-type: application/json;charset=utf-8");
+
+	if(!$code)
+	{
+		echo json_encode(array("Error"));
+		die();
+	}
+	OAuth::eveSSOLoginToken($code, $state);
+});
+
+// Merge accounts
+$app->map("/merge/:characterID/", function($characterID) use ($app){
+	global $ssoEnable;
+
+	if($ssoEnable == false)
+		die("SSO is disabled");
+
+	include("view/merge.php");
+})->via("GET", "POST");
+
+// Character
+$app->get("/character/:character(/:pageType)(/:subPages+)/", function($character, $pageType = "overview", $subPages = array()) use ($app) {
+		include("view/character.php");
+});
+
+// Corporation
+$app->get("/corporation/:corporation(/:pageType)(/:subPages+)/", function($corporation, $pageType = "overview", $subPages = array()) use ($app) {
+		include("view/corporation.php");
+});
+
+// Alliance
+$app->get("/alliance/:alliance(/:pageType)(/:subPages+)/", function($alliance, $pageType = "overview", $subPages = array()) use ($app) {
+		include("view/alliance.php");
+});
+
+// Faction
+$app->get("/faction/:faction(/:pageType)(/:subPages+)/", function($faction, $pageType = "overview", $subPages = array()) use ($app) {
+		include("view/faction.php");
+});
+
+// System
+$app->get("/system/:solarSystem(/:pageType)(/:subPages+)/", function($solarSystem, $pageType = "overview", $subPages = array()) use ($app) {
+		include("view/system.php");
+});
+
+// Region
+$app->get("/region/:region(/:pageType)(/:subPages+)/", function($region, $pageType = "overview", $subPages = array()) use ($app) {
+		include("view/region.php");
+});
+
+// Ship
+$app->get("/ship/:shipType(/:pageType)(/:subPages+)/", function($shipType, $pageType = "overview", $subPages = array()) use ($app) {
+		include("view/ship.php");
+});
+
+// Group
+$app->get("/group/:group(/:pageType)(/:subPages+)/", function($group, $pageType = "overview", $subPages = array()) use ($app) {
+		include("view/group.php");
 });
 
 // The Overview stuff

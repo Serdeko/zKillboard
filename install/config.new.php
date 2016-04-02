@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -23,6 +23,15 @@ $dbUser = "%dbuser%";
 $dbPassword = "%dbpassword%";
 $dbName = "%dbname%";
 $dbHost = "%dbhost%";
+$dbSocket = null;
+$dbPersist = true;
+$dbEmulatePrepares = true;
+$dbUseBufferedQuery = true;
+$dbExplain = false;
+$enableAnalyze = false;
+
+// IPs available
+$ipsAvailable = array(); // Set it to the external IP(s) you have available
 
 // External Servers
 $apiServer = "%apiserver%";
@@ -36,36 +45,75 @@ $baseAddr = "%baseaddr%";
 $fullAddr = "http://" . $baseAddr;
 chdir($baseDir);
 
+// Enable the raw killmail parser
+$rawKillmailParser = false;
+
+// Only fetch character if needed
+$enableCharacterFetcher = false;
+
+// SSO
+$ssoEnable = false;
+$ssoServer = "https://login.eveonline.com"; // use https://sisilogin.testeveonline.com for the test server
+$ssoResponseType = "code";
+$ssoRedirectURI = "{$fullAddr}/auth/eve/";
+$ssoClientID = "";
+$ssoSecret = "";
+$ssoScope = "";
+$ssoState = "";
+
+// Theme / Style and Name
+$killboardName = "zKillboard";
+$theme = "zkillboard";
+$style = "cyborg";
+
+// Debug
+$debug = true;
+
 // Logfile
 $logfile = "%logfile%";
+$ircLogFile = "";
+$ircAdminLogFile = "";
+$ircLogFrom = "$baseAddr - ";
 
 // Memcache
 $memcacheServer = "%memcache%";
 $memcachePort = "%memcacheport%";
 
+// Redis
+$redisServer = "%redis%";
+$redisPort = "%redisport%";
+
 // Pheal
 $phealCacheLocation = "%phealcachelocation%";
 
+// StatsD
+$statsd = false;
+$statsdserver = "localhost";
+$statsdport = 8125;
+$statsdnamespace = "zkb.namespace";
+$statsdglobalnamespace = "zkb";
+
 // Cookiiieeeee
 $cookie_name = "zKB";
+$cookie_ssl = false;
 $cookie_time = (3600 * 24 * 30); // 30 days
 $cookie_secret = "%cookiesecret%";
 
 // API
-$apiTimeBetweenAccess = 6; // 6 seconds between each request
-$apiWhiteList = array(
-	"85.88.24.82", // DOTLAN
-	"82.221.99.219", // zKillboard
-);
+$maxRequestsPerHour = 1800; // Once every 2 seconds
+$apiWhiteList = array();
 
 // Stomp
-$stompServer = "";
-$stompUser = "";
-$stompPassword = "";
+$stompServer = "tcp://eve-kill.net:61613";
+$stompUser = "guest";
+$stompPassword = "guest";
 
-// CloudFlare
-$cfUser = "";
-$cfKey = "";
+// Disqus
+$disqus = false;
+$disqusSSO = false;
+$disqusShortName = "";
+$disqusSecretKey = "";
+$disqusPublicKey = "";
 
 // Email stuff
 $emailsmtp = "";
@@ -75,16 +123,44 @@ $sentfromemail = "";
 $sentfromdomain = "";
 
 // Twitter
+$twitterName = "";
 $consumerKey = "";
 $consumerSecret = "";
 $accessToken = "";
 $accessTokenSecret = "";
 
+// Ads / Analytics
+$showAds = false;
+$adFreeMonthCost = 0;
+$walletCharacterID = 0;
+$showAnalytics = false;
+$topCaPub = ""; // ca-pub-<number>
+$topAdSlot = ""; // google_ad_slot number
+$bottomCaPub = ""; // ca-pub-<number>
+$bottomAdSlot = ""; // google_ad_slot number
+$analyticsID = ""; // UA-<number>
+$analyticsName = ""; // name
+
+// Facebook like button
+$showFacebook = false;
+$facebookAppID = null;
+
 // Slim config
-// to enable log, add "log.writer" => call after "log.enabled" => true, - you might have to load it in index after init has run and do $config["log.writer"] = call;
 $config = array(
-	"mode" => "production",
-	"debug" => false,
+	"mode" => ($debug ? "development" : "production"),
+	"debug" => ($debug ? true : false),
 	"log.enabled" => false,
-	"cookies.secret_key" => $cookie_secret
-	);
+	"cookies.secret_key" => $cookie_secret,
+);
+
+$useSemaphores = false;
+$semaphoreModulus = 10;
+
+# Save killmails to file system if enabled.
+$fsKillmails = false;
+
+# Be Social, or not by default
+$beSocial = false;
+
+# Parse kills in ascending killID order
+$parseAscending = true;

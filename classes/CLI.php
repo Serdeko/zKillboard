@@ -1,6 +1,5 @@
 <?php
-/* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+/* zLibrary
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -18,15 +17,18 @@
 
 class CLI
 {
+	/**
+	 * @param string $message
+	 */
 	public static function out($message, $die = false)
 	{
 		$colors = array(
-			"|w|" => "1;37", //White
-			"|b|" => "0;34", //Blue
-			"|g|" => "0;32", //Green
-			"|r|" => "0;31", //Red
-			"|n|" => "0" //Neutral
-			);
+				"|w|" => "1;37", //White
+				"|b|" => "0;34", //Blue
+				"|g|" => "0;32", //Green
+				"|r|" => "0;31", //Red
+				"|n|" => "0" //Neutral
+			       );
 
 		foreach($colors as $color => $value)
 			$message = str_replace($color, "\033[".$value."m", $message);
@@ -35,14 +37,17 @@ class CLI
 		if($die) die();
 	}
 
+	/**
+	 * @param string $prompt
+	 */
 	public static function prompt($prompt, $default = "") {
 		$colors = array(
-			"|w|" => "1;37", //White
-			"|b|" => "0;34", //Blue
-			"|g|" => "0;32", //Green
-			"|r|" => "0;31", //Red
-			"|n|" => "0" //Neutral
-			);
+				"|w|" => "1;37", //White
+				"|b|" => "0;34", //Blue
+				"|g|" => "0;32", //Green
+				"|r|" => "0;31", //Red
+				"|n|" => "0" //Neutral
+			       );
 
 		foreach($colors as $color => $value)
 			$prompt = str_replace($color, "\033[".$value."m", $prompt);

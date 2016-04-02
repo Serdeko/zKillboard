@@ -1,6 +1,6 @@
 <?php
 /* zKillboard
- * Copyright (C) 2012-2013 EVE-KILL Team and EVSCO.
+ * Copyright (C) 2012-2015 EVE-KILL Team and EVSCO.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -26,41 +26,19 @@ class Moderator
 	 *
 	 * @static
 	 * @param $userID the userid of the user to query
-	 * @return The array with the userinfo in it 
+	 * @return The array with the userinfo in it
 	 */
 	public static function getUserInfo($userID){
-		if (!User::isModerator()) throw new Exception("Invalid Access!");
+		if (!User::isModerator() and !User::isAdmin()) throw new Exception("Invalid Access!");
 		$info = Db::query("SELECT * FROM zz_users WHERE id = :id", array(":id" => $userID),0); // should this be star
 		return $info;
 	}
 
-	/**
-	 * Unrevokes the users access 
-	 *
-	 * @static
-	 * @param $userID the userid to change
-	 */
-	public static function setUnRevoked($userID){
-		if (!User::isModerator()) throw new Exception("Invalid Access!");
-		Db::execute("UPDATE zz_users SET revoked = :access WHERE id = :id", array(":id" => $userID, ":access" => 0));
-	}
-
-	/**
-	 * Revokes the users acces
-	 *
-	 * @static
-	 * @param $userID the userid to change
-	 * @param $reason the reason why the access was revoked
-	 */
-	public static function setRevoked($userID,$reason){
-		if (!User::isModerator()) throw new Exception("Invalid Access!");
-		Db::execute("UPDATE zz_users SET revoked = :access WHERE id = :id", array(":id" => $userID, ":access" => 1));
-		Db::execute("UPDATE zz_users SET revoked_reason = :reason WHERE id = :id", array(":id" => $userID, ":reason" => $reason));
-	}
-
-	public static function getUsers(){
-		if (!User::isModerator()) throw new Exception("Invalid Access!");
-		$users = Db::query("SELECT * FROM zz_users order by `id`", array(), 0); 
+	public static function getUsers($page){
+		if (!User::isModerator() and !User::isAdmin()) throw new Exception("Invalid Access!");
+		$limit = 30;
+		$offset = ($page - 1) * $limit;
+		$users = Db::query("SELECT * FROM zz_users ORDER BY id LIMIT $offset, $limit", array(), 0);
 		return $users;
 	}
 
